@@ -1,34 +1,33 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
- module spine {
+module spine {
 	export interface Viewport {
 		x: number,
 		y: number,
@@ -43,6 +42,9 @@
 	export interface SpinePlayerConfig {
 		/* the URL of the skeleton .json file */
 		jsonUrl: string
+
+		/* the URL of the skeleton .skel file */
+		skelUrl: string
 
 		/* the URL of the skeleton .atlas file. Atlas page images are automatically resolved. */
 		atlasUrl: string
@@ -320,7 +322,7 @@
 
 		validateConfig(config: SpinePlayerConfig): SpinePlayerConfig {
 			if (!config) throw new Error("Please pass a configuration to new.spine.SpinePlayer().");
-			if (!config.jsonUrl) throw new Error("Please specify the URL of the skeleton JSON file.");
+			if (!config.jsonUrl && !config.skelUrl) throw new Error("Please specify the URL of the skeleton JSON or .skel file.");
 			if (!config.atlasUrl) throw new Error("Please specify the URL of the atlas file.");
 			if (!config.alpha) config.alpha = false;
 			if (!config.backgroundColor) config.backgroundColor = "#000000";
@@ -419,7 +421,8 @@
 
 			// Load the assets
 			this.assetManager = new spine.webgl.AssetManager(this.context);
-			this.assetManager.loadText(config.jsonUrl);
+			if (config.jsonUrl) this.assetManager.loadText(config.jsonUrl);
+			else this.assetManager.loadBinary(config.skelUrl);
 			this.assetManager.loadTextureAtlas(config.atlasUrl);
 			if (config.backgroundImage && config.backgroundImage.url)
 				this.assetManager.loadTexture(config.backgroundImage.url);
@@ -843,14 +846,25 @@
 			}
 
 			let atlas = this.assetManager.get(this.config.atlasUrl);
-			let jsonText = this.assetManager.get(this.config.jsonUrl);
-			let json = new SkeletonJson(new AtlasAttachmentLoader(atlas));
 			let skeletonData: SkeletonData;
-			try {
-				skeletonData = json.readSkeletonData(jsonText);
-			} catch (e) {
-				this.showError("Error: could not load skeleton .json.<br><br>" + escapeHtml(JSON.stringify(e)));
-				return;
+			if (this.config.jsonUrl) {
+				let jsonText = this.assetManager.get(this.config.jsonUrl);
+				let json = new SkeletonJson(new AtlasAttachmentLoader(atlas));
+				try {
+					skeletonData = json.readSkeletonData(jsonText);
+				} catch (e) {
+					this.showError("Error: could not load skeleton .json.<br><br>" + escapeHtml(JSON.stringify(e)));
+					return;
+				}
+			} else {
+				let binaryData = this.assetManager.get(this.config.skelUrl);
+				let binary = new SkeletonBinary(new AtlasAttachmentLoader(atlas));
+				try {
+					skeletonData = binary.readSkeletonData(binaryData);
+				} catch (e) {
+					this.showError("Error: could not load skeleton .skel.<br><br>" + escapeHtml(JSON.stringify(e)));
+					return;
+				}
 			}
 			this.skeleton = new Skeleton(skeletonData);
 			let stateData = new AnimationStateData(skeletonData);
@@ -955,8 +969,8 @@
 			this.setupInput();
 
 			// Hide skin and animation if there's only the default skin / no animation
-			if (skeletonData.skins.length == 1) this.skinButton.classList.add("spine-player-hidden");
-			if (skeletonData.animations.length == 1) this.animationButton.classList.add("spine-player-hidden");
+			if (skeletonData.skins.length == 1 || (this.config.skins && this.config.skins.length == 1)) this.skinButton.classList.add("spine-player-hidden");
+			if (skeletonData.animations.length == 1 || (this.config.animations && this.config.animations.length == 1)) this.animationButton.classList.add("spine-player-hidden");
 
 			this.config.success(this);
 			this.loaded = true;
@@ -1099,7 +1113,7 @@
 			this.playButton.classList.add("spine-player-button-icon-play");
 		}
 
-		private setAnimation (animation: string) {
+		public setAnimation (animation: string) {
 			// Determine viewport
 			this.previousViewport = this.currentViewport;
 			let animViewport = this.calculateAnimationViewport(animation);
@@ -1156,7 +1170,7 @@
 
 			this.animationState.clearTracks();
 			this.skeleton.setToSetupPose();
-			this.animationState.setAnimation(0, this.config.animation, true);
+			this.animationState.setAnimation(0, animation, true);
 		}
 
 		private percentageToWorldUnit(size: number, percentageOrAbsolute: string | number): number {

@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 module spine {
@@ -35,6 +34,7 @@ module spine {
 		static FIRST = 1;
 		static HOLD = 2;
 		static HOLD_MIX = 3;
+		static NOT_LAST = 4;
 
 		data: AnimationStateData;
 		tracks = new Array<TrackEntry>();
@@ -76,7 +76,7 @@ module spine {
 					let nextTime = current.trackLast - next.delay;
 					if (nextTime >= 0) {
 						next.delay = 0;
-						next.trackTime = (nextTime / current.timeScale + delta) * next.timeScale;
+						next.trackTime = current.timeScale == 0 ? 0 : (nextTime / current.timeScale + delta) * next.timeScale;
 						current.trackTime += currentDelta;
 						this.setCurrent(i, next, true);
 						while (next.mixingFrom != null) {
@@ -159,9 +159,14 @@ module spine {
 				let animationLast = current.animationLast, animationTime = current.getAnimationTime();
 				let timelineCount = current.animation.timelines.length;
 				let timelines = current.animation.timelines;
-				if (i == 0 && (mix == 1 || blend == MixBlend.add)) {
-					for (let ii = 0; ii < timelineCount; ii++)
-						timelines[ii].apply(skeleton, animationLast, animationTime, events, mix, blend, MixDirection.in);
+				if ((i == 0 && mix == 1) || blend == MixBlend.add) {
+					for (let ii = 0; ii < timelineCount; ii++) {
+						// Fixes issue #302 on IOS9 where mix, blend sometimes became undefined and caused assets
+                        // to sometimes stop rendering when using color correction, as their RGBA values become NaN.
+                        // (https://github.com/pixijs/pixi-spine/issues/302)
+                        Utils.webkit602BugfixHelper(mix, blend);
+						timelines[ii].apply(skeleton, animationLast, animationTime, events, mix, blend, MixDirection.mixIn);
+					}
 				} else {
 					let timelineMode = current.timelineMode;
 
@@ -171,13 +176,13 @@ module spine {
 
 					for (let ii = 0; ii < timelineCount; ii++) {
 						let timeline = timelines[ii];
-						let timelineBlend = timelineMode[ii] == AnimationState.SUBSEQUENT ? blend : MixBlend.setup;
+						let timelineBlend = (timelineMode[ii] & (AnimationState.NOT_LAST - 1)) == AnimationState.SUBSEQUENT ? blend : MixBlend.setup;
 						if (timeline instanceof RotateTimeline) {
 							this.applyRotateTimeline(timeline, skeleton, animationTime, mix, timelineBlend, timelinesRotation, ii << 1, firstFrame);
 						} else {
 							// This fixes the WebKit 602 specific issue described at http://esotericsoftware.com/forum/iOS-10-disappearing-graphics-10109
 							Utils.webkit602BugfixHelper(mix, blend);
-							timeline.apply(skeleton, animationLast, animationTime, events, mix, timelineBlend, MixDirection.in);
+							timeline.apply(skeleton, animationLast, animationTime, events, mix, timelineBlend, MixDirection.mixIn);
 						}
 					}
 				}
@@ -212,8 +217,8 @@ module spine {
 			let timelines = from.animation.timelines;
 			let alphaHold = from.alpha * to.interruptAlpha, alphaMix = alphaHold * (1 - mix);
 			if (blend == MixBlend.add) {
-				for (var i = 0; i < timelineCount; i++)
-					timelines[i].apply(skeleton, animationLast, animationTime, events, alphaMix, blend, MixDirection.out);
+				for (let i = 0; i < timelineCount; i++)
+					timelines[i].apply(skeleton, animationLast, animationTime, events, alphaMix, blend, MixDirection.mixOut);
 			} else {
 				let timelineMode = from.timelineMode;
 				let timelineHoldMix = from.timelineHoldMix;
@@ -223,14 +228,17 @@ module spine {
 				let timelinesRotation = from.timelinesRotation;
 
 				from.totalAlpha = 0;
-				for (var i = 0; i < timelineCount; i++) {
+				for (let i = 0; i < timelineCount; i++) {
 					let timeline = timelines[i];
-					var direction = MixDirection.out;
-					var timelineBlend: MixBlend;
-					var alpha = 0;
-					switch (timelineMode[i]) {
+					let direction = MixDirection.mixOut;
+					let timelineBlend: MixBlend;
+					let alpha = 0;
+					switch (timelineMode[i] & (AnimationState.NOT_LAST - 1)) {
 					case AnimationState.SUBSEQUENT:
-						if (!attachments && timeline instanceof AttachmentTimeline) continue;
+						if (!attachments && timeline instanceof AttachmentTimeline) {
+							if ((timelineMode[i] & AnimationState.NOT_LAST) == AnimationState.NOT_LAST) continue;
+							blend = MixBlend.setup;
+						}
 						if (!drawOrder && timeline instanceof DrawOrderTimeline) continue;
 						timelineBlend = blend;
 						alpha = alphaMix;
@@ -255,11 +263,11 @@ module spine {
 					else {
 						// This fixes the WebKit 602 specific issue described at http://esotericsoftware.com/forum/iOS-10-disappearing-graphics-10109
 						Utils.webkit602BugfixHelper(alpha, blend);
-						if (timelineBlend = MixBlend.setup) {
+						if (timelineBlend == MixBlend.setup) {
 							if (timeline instanceof AttachmentTimeline) {
-								if (attachments) direction = MixDirection.out;
+								if (attachments || (timelineMode[i] & AnimationState.NOT_LAST) == AnimationState.NOT_LAST) direction = MixDirection.mixIn;
 							} else if (timeline instanceof DrawOrderTimeline) {
-								if (drawOrder) direction = MixDirection.out;
+								if (drawOrder) direction = MixDirection.mixIn;
 							}
 						}
 						timeline.apply(skeleton, animationLast, animationTime, events, alpha, timelineBlend, direction);
@@ -281,37 +289,45 @@ module spine {
 			if (firstFrame) timelinesRotation[i] = 0;
 
 			if (alpha == 1) {
-				timeline.apply(skeleton, 0, time, null, 1, blend, MixDirection.in);
+				timeline.apply(skeleton, 0, time, null, 1, blend, MixDirection.mixIn);
 				return;
 			}
 
 			let rotateTimeline = timeline as RotateTimeline;
 			let frames = rotateTimeline.frames;
 			let bone = skeleton.bones[rotateTimeline.boneIndex];
+			if (!bone.active) return;
+			let r1 = 0, r2 = 0;
 			if (time < frames[0]) {
-				if (blend == MixBlend.setup) bone.rotation = bone.data.rotation;
-				return;
-			}
+				switch (blend) {
+					case MixBlend.setup:
+						bone.rotation = bone.data.rotation;
+					default:
+						return;
+					case MixBlend.first:
+						r1 = bone.rotation;
+						r2 = bone.data.rotation;
+				}
+			} else {
+				r1 = blend == MixBlend.setup ? bone.data.rotation : bone.rotation;
+				if (time >= frames[frames.length - RotateTimeline.ENTRIES]) // Time is after last frame.
+					r2 = bone.data.rotation + frames[frames.length + RotateTimeline.PREV_ROTATION];
+				else {
+					// Interpolate between the previous frame and the current frame.
+					let frame = Animation.binarySearch(frames, time, RotateTimeline.ENTRIES);
+					let prevRotation = frames[frame + RotateTimeline.PREV_ROTATION];
+					let frameTime = frames[frame];
+					let percent = rotateTimeline.getCurvePercent((frame >> 1) - 1,
+						1 - (time - frameTime) / (frames[frame + RotateTimeline.PREV_TIME] - frameTime));
 
-			let r2 = 0;
-			if (time >= frames[frames.length - RotateTimeline.ENTRIES]) // Time is after last frame.
-				r2 = bone.data.rotation + frames[frames.length + RotateTimeline.PREV_ROTATION];
-			else {
-				// Interpolate between the previous frame and the current frame.
-				let frame = Animation.binarySearch(frames, time, RotateTimeline.ENTRIES);
-				let prevRotation = frames[frame + RotateTimeline.PREV_ROTATION];
-				let frameTime = frames[frame];
-				let percent = rotateTimeline.getCurvePercent((frame >> 1) - 1,
-					1 - (time - frameTime) / (frames[frame + RotateTimeline.PREV_TIME] - frameTime));
-
-				r2 = frames[frame + RotateTimeline.ROTATION] - prevRotation;
-				r2 -= (16384 - ((16384.499999999996 - r2 / 360) | 0)) * 360;
-				r2 = prevRotation + r2 * percent + bone.data.rotation;
-				r2 -= (16384 - ((16384.499999999996 - r2 / 360) | 0)) * 360;
+					r2 = frames[frame + RotateTimeline.ROTATION] - prevRotation;
+					r2 -= (16384 - ((16384.499999999996 - r2 / 360) | 0)) * 360;
+					r2 = prevRotation + r2 * percent + bone.data.rotation;
+					r2 -= (16384 - ((16384.499999999996 - r2 / 360) | 0)) * 360;
+				}
 			}
 
 			// Mix between rotations using the direction of the shortest route on the first frame while detecting crosses.
-			let r1 = blend == MixBlend.setup ? bone.data.rotation : bone.rotation;
 			let total = 0, diff = r2 - r1;
 			diff -= (16384 - ((16384.499999999996 - diff / 360) | 0)) * 360;
 			if (diff == 0) {
@@ -357,7 +373,7 @@ module spine {
 			}
 
 			// Queue complete if completed a loop iteration or the animation.
-			var complete = false;
+			let complete = false;
 			if (entry.loop)
 				complete = duration == 0 || trackLastWrapped > entry.trackTime % duration;
 			else
@@ -521,7 +537,7 @@ module spine {
 
 		expandToIndex (index: number) {
 			if (index < this.tracks.length) return this.tracks[index];
-			Utils.ensureArrayCapacity(this.tracks, index - this.tracks.length + 1, null);
+			Utils.ensureArrayCapacity(this.tracks, index + 1, null);
 			this.tracks.length = index + 1;
 			return null;
 		}
@@ -570,20 +586,29 @@ module spine {
 
 			this.propertyIDs.clear();
 
-			for (var i = 0, n = this.tracks.length; i < n; i++) {
+			for (let i = 0, n = this.tracks.length; i < n; i++) {
 				let entry = this.tracks[i];
 				if (entry == null) continue;
 				while (entry.mixingFrom != null)
 					entry = entry.mixingFrom;
 
 				do {
-					if (entry.mixingFrom == null || entry.mixBlend != MixBlend.add) this.setTimelineModes(entry);
+					if (entry.mixingFrom == null || entry.mixBlend != MixBlend.add) this.computeHold(entry);
 					entry = entry.mixingTo;
 				} while (entry != null)
 			}
+
+			this.propertyIDs.clear();
+			for (let i = this.tracks.length - 1; i >= 0; i--) {
+				let entry = this.tracks[i];
+				while (entry != null) {
+					this.computeNotLast(entry);
+					entry = entry.mixingFrom;
+				}
+			}
 		}
 
-		setTimelineModes (entry: TrackEntry) {
+		computeHold (entry: TrackEntry) {
 			let to = entry.mixingTo;
 			let timelines = entry.animation.timelines;
 			let timelinesCount = entry.animation.timelines.length;
@@ -601,13 +626,15 @@ module spine {
 			}
 
 			outer:
-			for (var i = 0; i < timelinesCount; i++) {
-				let id = timelines[i].getPropertyId();
+			for (let i = 0; i < timelinesCount; i++) {
+				let timeline = timelines[i];
+				let id = timeline.getPropertyId();
 				if (!propertyIDs.add(id))
 					timelineMode[i] = AnimationState.SUBSEQUENT;
-				else if (to == null || !this.hasTimeline(to, id))
+				else if (to == null || timeline instanceof AttachmentTimeline || timeline instanceof DrawOrderTimeline
+					|| timeline instanceof EventTimeline || !this.hasTimeline(to, id)) {
 					timelineMode[i] = AnimationState.FIRST;
-				else {
+				} else {
 					for (let next = to.mixingTo; next != null; next = next.mixingTo) {
 						if (this.hasTimeline(next, id)) continue;
 						if (entry.mixDuration > 0) {
@@ -622,9 +649,23 @@ module spine {
 			}
 		}
 
+		computeNotLast (entry: TrackEntry) {
+			let timelines = entry.animation.timelines;
+			let timelinesCount = entry.animation.timelines.length;
+			let timelineMode = entry.timelineMode;
+			let propertyIDs = this.propertyIDs;
+
+			for (let i = 0; i < timelinesCount; i++) {
+				if (timelines[i] instanceof AttachmentTimeline) {
+					let timeline = timelines[i] as AttachmentTimeline;
+					if (!propertyIDs.add(timeline.slotIndex)) timelineMode[i] |= AnimationState.NOT_LAST;
+				}
+			}
+		}
+
 		hasTimeline (entry: TrackEntry, id: number) : boolean {
 			let timelines = entry.animation.timelines;
-			for (var i = 0, n = timelines.length; i < n; i++)
+			for (let i = 0, n = timelines.length; i < n; i++)
 				if (timelines[i].getPropertyId() == id) return true;
 			return false;
 		}

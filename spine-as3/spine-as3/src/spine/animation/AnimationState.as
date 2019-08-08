@@ -1,32 +1,32 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
+
 package spine.animation {
 	import spine.Bone;
 	import spine.Event;
@@ -40,6 +40,7 @@ package spine.animation {
 		public static var FIRST : int = 1;
 		public static var HOLD : int = 2;
 		public static var HOLD_MIX : int = 3;
+		public static var NOT_LAST : int = 4;
 		internal static var emptyAnimation : Animation = new Animation("<empty>", new Vector.<Timeline>(), 0);
 		public var data : AnimationStateData;
 		public var tracks : Vector.<TrackEntry> = new Vector.<TrackEntry>();
@@ -90,7 +91,7 @@ package spine.animation {
 					var nextTime : Number = current.trackLast - next.delay;
 					if (nextTime >= 0) {
 						next.delay = 0;
-						next.trackTime = (nextTime / current.timeScale + delta) * next.timeScale;
+						next.trackTime = current.timeScale == 0 ? 0 : (nextTime / current.timeScale + delta) * next.timeScale;
 						current.trackTime += currentDelta;
 						setCurrent(i, next, true);
 						while (next.mixingFrom != null) {
@@ -176,7 +177,7 @@ package spine.animation {
 				var timelineCount : int = current.animation.timelines.length;
 				var timelines : Vector.<Timeline> = current.animation.timelines;
 				var ii : int = 0;
-				if (i == 0 && (mix == 1 || blend == MixBlend.add)) {
+				if ((i == 0 && mix == 1) || blend == MixBlend.add) {
 					for (ii = 0; ii < timelineCount; ii++)
 						Timeline(timelines[ii]).apply(skeleton, animationLast, animationTime, events, mix, blend, MixDirection.In);
 				} else {
@@ -188,7 +189,7 @@ package spine.animation {
 					
 					for (ii = 0; ii < timelineCount; ii++) {
 						var timeline : Timeline = timelines[ii];
-						var timelineBlend : MixBlend = timelineMode[ii] == AnimationState.SUBSEQUENT ? blend : MixBlend.setup;
+						var timelineBlend : MixBlend = (timelineMode[ii] & (NOT_LAST - 1)) == SUBSEQUENT ? blend : MixBlend.setup;
 						if (timeline is RotateTimeline) {
 							applyRotateTimeline(timeline, skeleton, animationTime, mix, timelineBlend, timelinesRotation, ii << 1, firstFrame);
 						} else
@@ -244,9 +245,12 @@ package spine.animation {
 					var direction : MixDirection = MixDirection.Out;
 					var timelineBlend: MixBlend;
 					var alpha : Number = 0;
-					switch (timelineMode[i]) {
-					case SUBSEQUENT:
-						if (!attachments && timeline is AttachmentTimeline) continue;
+					switch (timelineMode[i] & (NOT_LAST - 1)) {
+					case SUBSEQUENT:						
+						if (!attachments && timeline is AttachmentTimeline) {
+							if ((timelineMode[i] & NOT_LAST) == NOT_LAST) continue;
+							blend = MixBlend.setup;
+						}
 						if (!drawOrder && timeline is DrawOrderTimeline) continue;
 						timelineBlend = blend;
 						alpha = alphaMix;
@@ -271,7 +275,7 @@ package spine.animation {
 					else {	
 						if (timelineBlend == MixBlend.setup) {
 							if (timeline is AttachmentTimeline) {
-								if (attachments) direction = MixDirection.In;				
+								if (attachments || ((timelineMode[i] & NOT_LAST) == NOT_LAST)) direction = MixDirection.In;
 							} else if (timeline is DrawOrderTimeline) {
 								if (drawOrder) direction = MixDirection.In;
 							}
@@ -300,29 +304,37 @@ package spine.animation {
 			var rotateTimeline : RotateTimeline = RotateTimeline(timeline);
 			var frames : Vector.<Number> = rotateTimeline.frames;
 			var bone : Bone = skeleton.bones[rotateTimeline.boneIndex];
+			if (!bone.active) return;
+			var r1 : Number, r2 : Number;
 			if (time < frames[0]) {
-				if (blend == MixBlend.setup) bone.rotation = bone.data.rotation;
-				return;
+				switch (blend) {
+					case MixBlend.setup:
+						bone.rotation = bone.data.rotation;
+					default:
+						return;
+					case MixBlend.first:
+						r1 = bone.rotation;
+						r2 = bone.data.rotation;
+				}				
+			} else {			
+				r1 = blend == MixBlend.setup ? bone.data.rotation : bone.rotation;
+				if (time >= frames[frames.length - RotateTimeline.ENTRIES]) // Time is after last frame.
+					r2 = bone.data.rotation + frames[frames.length + RotateTimeline.PREV_ROTATION];
+				else {
+					// Interpolate between the previous frame and the current frame.
+					var frame : int = Animation.binarySearch(frames, time, RotateTimeline.ENTRIES);
+					var prevRotation : Number = frames[frame + RotateTimeline.PREV_ROTATION];
+					var frameTime : Number = frames[frame];
+					var percent : Number = rotateTimeline.getCurvePercent((frame >> 1) - 1, 1 - (time - frameTime) / (frames[frame + RotateTimeline.PREV_TIME] - frameTime));
+	
+					r2 = frames[frame + RotateTimeline.ROTATION] - prevRotation;
+					r2 -= (16384 - int((16384.499999999996 - r2 / 360))) * 360;
+					r2 = prevRotation + r2 * percent + bone.data.rotation;
+					r2 -= (16384 - int((16384.499999999996 - r2 / 360))) * 360;
+				}
 			}
 
-			var r2 : Number;
-			if (time >= frames[frames.length - RotateTimeline.ENTRIES]) // Time is after last frame.
-				r2 = bone.data.rotation + frames[frames.length + RotateTimeline.PREV_ROTATION];
-			else {
-				// Interpolate between the previous frame and the current frame.
-				var frame : int = Animation.binarySearch(frames, time, RotateTimeline.ENTRIES);
-				var prevRotation : Number = frames[frame + RotateTimeline.PREV_ROTATION];
-				var frameTime : Number = frames[frame];
-				var percent : Number = rotateTimeline.getCurvePercent((frame >> 1) - 1, 1 - (time - frameTime) / (frames[frame + RotateTimeline.PREV_TIME] - frameTime));
-
-				r2 = frames[frame + RotateTimeline.ROTATION] - prevRotation;
-				r2 -= (16384 - int((16384.499999999996 - r2 / 360))) * 360;
-				r2 = prevRotation + r2 * percent + bone.data.rotation;
-				r2 -= (16384 - int((16384.499999999996 - r2 / 360))) * 360;
-			}
-
-			// Mix between rotations using the direction of the shortest route on the first frame while detecting crosses.
-			var r1 : Number = blend == MixBlend.setup ? bone.data.rotation : bone.rotation;
+			// Mix between rotations using the direction of the shortest route on the first frame while detecting crosses.			
 			var total : Number, diff : Number = r2 - r1;
 			diff -= (16384 - int((16384.499999999996 - diff / 360))) * 360;
 			if (diff == 0) {
@@ -579,20 +591,51 @@ package spine.animation {
 			animationsChanged = false;
 
 			propertyIDs = new Dictionary();					
-				
-			for (var i : int = 0, n : int = tracks.length; i < n; i++) {
-				var entry : TrackEntry = tracks[i];
+			var i : int = 0;
+			var n: int = 0;
+			var entry : TrackEntry = null;
+			for (i = 0, n = tracks.length; i < n; i++) {
+				entry = tracks[i];
 				if (entry == null) continue;
 				while (entry.mixingFrom != null)
 					entry = entry.mixingFrom;
 				do {
-					if (entry.mixingTo == null || entry.mixBlend != MixBlend.add) setTimelineModes(entry);
+					if (entry.mixingTo == null || entry.mixBlend != MixBlend.add) computeHold(entry);
 					entry = entry.mixingTo;			
 				} while (entry != null);
 			}
+
+			propertyIDs = new Dictionary();
+			for (i = tracks.length - 1; i >= 0; i--) {
+				entry = tracks[i];
+				while (entry != null) {
+					computeNotLast(entry);
+					entry = entry.mixingFrom;
+				}
+			}
 		}
 		
-		private function setTimelineModes (entry: TrackEntry) {
+		private function computeNotLast (entry: TrackEntry) : void {
+			var timelines : Vector.<Timeline> = entry.animation.timelines;
+			var timelinesCount : int = entry.animation.timelines.length;
+			var timelineMode : Vector.<int> = entry.timelineMode;
+			var propertyIDs : Dictionary = this.propertyIDs;
+
+			for (var i : int = 0; i < timelinesCount; i++) {
+				if (timelines[i] is AttachmentTimeline) {
+					var timeline : AttachmentTimeline = AttachmentTimeline(timelines[i]);
+					var intId : int = timeline.slotIndex;
+					var id : String = intId.toString();
+					var contained : Object = propertyIDs[id];
+					propertyIDs[id] = true;
+					if (contained != null) {
+						timelineMode[i] |= NOT_LAST;
+					}
+				}
+			}
+		}
+
+		private function computeHold (entry: TrackEntry) : void {
 			var to: TrackEntry = entry.mixingTo;			
 			var timelines : Vector.<Timeline> = entry.animation.timelines;
 			var timelinesCount : int = entry.animation.timelines.length;
@@ -602,8 +645,9 @@ package spine.animation {
 			timelineHoldMix.length = 0;
 			var propertyIDs: Dictionary = this.propertyIDs;
 			
+			var i : int = 0;
 			if (to != null && to.holdPrevious) {
-				for (var i : int = 0; i < timelinesCount; i++) {										
+				for (i = 0; i < timelinesCount; i++) {
 					propertyIDs[timelines[i].getPropertyId().toString()] = true;			
 					timelineMode[i] = HOLD;
 				}
@@ -611,14 +655,16 @@ package spine.animation {
 			}
 
 			outer:
-			for (var i : int = 0; i < timelinesCount; i++) {
-				var intId : int = timelines[i].getPropertyId();
+			for (i = 0; i < timelinesCount; i++) {
+				var timeline : Timeline = Timeline(timelines[i]);
+				var intId : int = timeline.getPropertyId();
 				var id : String = intId.toString();			
 				var contained: Object = propertyIDs[id];
 				propertyIDs[id] = true;
 				if (contained != null) {
 					timelineMode[i] = AnimationState.SUBSEQUENT;
-				} else if (to == null || !hasTimeline(to, intId)) {				
+				} else if (to == null || timeline is AttachmentTimeline || timeline is DrawOrderTimeline
+					|| timeline is EventTimeline || !hasTimeline(to, intId)) {
 					timelineMode[i] = AnimationState.FIRST;
 				} else {					
 					for (var next : TrackEntry = to.mixingTo; next != null; next = next.mixingTo) {

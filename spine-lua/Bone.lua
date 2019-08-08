@@ -1,31 +1,30 @@
- -------------------------------------------------------------------------------
--- Spine Runtimes Software License v2.5
+-------------------------------------------------------------------------------
+-- Spine Runtimes License Agreement
+-- Last updated May 1, 2019. Replaces all prior versions.
 --
--- Copyright (c) 2013-2016, Esoteric Software
--- All rights reserved.
+-- Copyright (c) 2013-2019, Esoteric Software LLC
 --
--- You are granted a perpetual, non-exclusive, non-sublicensable, and
--- non-transferable license to use, install, execute, and perform the Spine
--- Runtimes software and derivative works solely for personal or internal
--- use. Without the written permission of Esoteric Software (see Section 2 of
--- the Spine Software License Agreement), you may not (a) modify, translate,
--- adapt, or develop new applications using the Spine Runtimes or otherwise
--- create derivative works or improvements of the Spine Runtimes or (b) remove,
--- delete, alter, or obscure any trademarks or any copyright, trademark, patent,
--- or other intellectual property or proprietary rights notices on or in the
--- Software, including any copy thereof. Redistributions in binary or source
--- form must include this license and terms.
+-- Integration of the Spine Runtimes into software or otherwise creating
+-- derivative works of the Spine Runtimes is permitted under the terms and
+-- conditions of Section 2 of the Spine Editor License Agreement:
+-- http://esotericsoftware.com/spine-editor-license
 --
--- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
--- IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
--- MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
--- EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
--- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
--- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
--- USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
--- IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
--- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
--- POSSIBILITY OF SUCH DAMAGE.
+-- Otherwise, it is permitted to integrate the Spine Runtimes into software
+-- or otherwise create derivative works of the Spine Runtimes (collectively,
+-- "Products"), provided that each user of the Products must obtain their own
+-- Spine Editor license and redistribution of the Products in any form must
+-- include this license and copyright notice.
+--
+-- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+-- OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+-- OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+-- NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+-- INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+-- BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+-- INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+-- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+-- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+-- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -------------------------------------------------------------------------------
 
 local setmetatable = setmetatable
@@ -70,7 +69,8 @@ function Bone.new (data, skeleton, parent)
 
 		a = 0, b = 0, worldX = 0, -- a b x
 		c = 0, d = 0, worldY = 0, -- c d y
-		sorted = false
+		sorted = false,
+    active = false
 	}
 	setmetatable(self, Bone)
 
@@ -95,7 +95,7 @@ function Bone:updateWorldTransformWith (x, y, rotation, scaleX, scaleY, shearX, 
 	self.ashearX = shearX
 	self.ashearY = shearY
 	self.appliedValid = true
-	
+
 	local sx = self.skeleton.scaleX;
 	local sy = self.skeleton.scaleY;
 
@@ -103,11 +103,11 @@ function Bone:updateWorldTransformWith (x, y, rotation, scaleX, scaleY, shearX, 
 	if parent == nil then
 		local rotationY = rotation + 90 + shearY
 		local rotationRad = math_rad(rotation + shearX)
-		local rotationYRad = math_rad(rotationY)		
+		local rotationYRad = math_rad(rotationY)
 		local skeleton = self.skeleton
 		self.a = math_cos(rotationRad) * scaleX * sx
-		self.b = math_cos(rotationYRad) * scaleY * sy
-		self.c = math_sin(rotationRad) * scaleX * sx
+		self.b = math_cos(rotationYRad) * scaleY * sx
+		self.c = math_sin(rotationRad) * scaleX * sy
 		self.d = math_sin(rotationYRad) * scaleY * sy
 		self.worldX = x * sx + skeleton.x
 		self.worldY = y * sy + skeleton.y
@@ -161,7 +161,7 @@ function Bone:updateWorldTransformWith (x, y, rotation, scaleX, scaleY, shearX, 
 		self.a = pa * la - pb * lc
 		self.b = pa * lb - pb * ld
 		self.c = pc * la + pd * lc
-		self.d = pc * lb + pd * ld	
+		self.d = pc * lb + pd * ld
 	elseif transformMode == TransformMode.noScale or transformMode == TransformMode.noScaleOrReflection then
 		local cos = math_cos(math_rad(rotation))
 		local sin = math_sin(math_rad(rotation))
@@ -185,9 +185,9 @@ function Bone:updateWorldTransformWith (x, y, rotation, scaleX, scaleY, shearX, 
 		self.a = za * la + zb * lc
 		self.b = za * lb + zb * ld
 		self.c = zc * la + zd * lc
-		self.d = zc * lb + zd * ld		
+		self.d = zc * lb + zd * ld
 	end
-	
+
 	self.a = self.a * sx
 	self.b = self.b * sx
 	self.c = self.c * sy

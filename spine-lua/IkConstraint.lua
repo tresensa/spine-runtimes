@@ -1,31 +1,30 @@
 -------------------------------------------------------------------------------
--- Spine Runtimes Software License v2.5
+-- Spine Runtimes License Agreement
+-- Last updated May 1, 2019. Replaces all prior versions.
 --
--- Copyright (c) 2013-2016, Esoteric Software
--- All rights reserved.
+-- Copyright (c) 2013-2019, Esoteric Software LLC
 --
--- You are granted a perpetual, non-exclusive, non-sublicensable, and
--- non-transferable license to use, install, execute, and perform the Spine
--- Runtimes software and derivative works solely for personal or internal
--- use. Without the written permission of Esoteric Software (see Section 2 of
--- the Spine Software License Agreement), you may not (a) modify, translate,
--- adapt, or develop new applications using the Spine Runtimes or otherwise
--- create derivative works or improvements of the Spine Runtimes or (b) remove,
--- delete, alter, or obscure any trademarks or any copyright, trademark, patent,
--- or other intellectual property or proprietary rights notices on or in the
--- Software, including any copy thereof. Redistributions in binary or source
--- form must include this license and terms.
+-- Integration of the Spine Runtimes into software or otherwise creating
+-- derivative works of the Spine Runtimes is permitted under the terms and
+-- conditions of Section 2 of the Spine Editor License Agreement:
+-- http://esotericsoftware.com/spine-editor-license
 --
--- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
--- IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
--- MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
--- EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
--- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
--- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
--- USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
--- IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
--- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
--- POSSIBILITY OF SUCH DAMAGE.
+-- Otherwise, it is permitted to integrate the Spine Runtimes into software
+-- or otherwise create derivative works of the Spine Runtimes (collectively,
+-- "Products"), provided that each user of the Products must obtain their own
+-- Spine Editor license and redistribution of the Products in any form must
+-- include this license and copyright notice.
+--
+-- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+-- OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+-- OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+-- NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+-- INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+-- BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+-- INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+-- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+-- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+-- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -------------------------------------------------------------------------------
 
 local setmetatable = setmetatable
@@ -35,6 +34,7 @@ local math_sqrt = math.sqrt
 local math_acos = math.acos
 local math_sin = math.sin
 local math_cos = math.cos
+local math_min = math.min
 local table_insert = table.insert
 local math_deg = math.deg
 local math_rad = math.rad
@@ -52,9 +52,11 @@ function IkConstraint.new (data, skeleton)
 		bones = {},
 		target = nil,
 		mix = data.mix,
+    softness = data.softness,
 		compress = data.compress,
 		stretch = data.stretch,
 		bendDirection = data.bendDirection,
+    active = false
 	}
 	setmetatable(self, IkConstraint)
 
@@ -78,7 +80,7 @@ function IkConstraint:update ()
 	if boneCount == 1 then
 		self:apply1(bones[1], target.worldX, target.worldY, self.compress, self.stretch, self.data.uniform, self.mix)
 	elseif boneCount == 2 then
-		self:apply2(bones[1], bones[2], target.worldX, target.worldY, self.bendDirection, self.stretch, self.mix)
+		self:apply2(bones[1], bones[2], target.worldX, target.worldY, self.bendDirection, self.stretch, self.softness, self.mix)
 	end
 end
 
@@ -111,7 +113,7 @@ function IkConstraint:apply1 (bone, targetX, targetY, compress, stretch, uniform
 	bone:updateWorldTransformWith(bone.ax, bone.ay, bone.arotation + rotationIK * alpha, sx, sy, bone.ashearX, bone.ashearY)
 end
 
-function IkConstraint:apply2 (parent, child, targetX, targetY, bendDir, stretch, alpha)
+function IkConstraint:apply2 (parent, child, targetX, targetY, bendDir, stretch, softness, alpha)
 	if alpha == 0 then
 		child:updateWorldTransform()
 		return
@@ -169,19 +171,36 @@ function IkConstraint:apply2 (parent, child, targetX, targetY, bendDir, stretch,
 	c = pp.c
 	d = pp.d
 	local id = 1 / (a * d - b * c)
-	local x = targetX - pp.worldX
-	local y = targetY - pp.worldY
-	local tx = (x * d - y * b) * id - px
-	local ty = (y * a - x * c) * id - py
-	local dd = tx * tx + ty * ty
-	x = cwx - pp.worldX
-	y = cwy - pp.worldY
-	local dx = (x * d - y * b) * id - px
-	local dy = (y * a - x * c) * id - py
-	local l1 = math_sqrt(dx * dx + dy * dy)
-	local l2 = child.data.length * csx
-	local a1 = 0
-	local a2 = 0
+  local x = cwx - pp.worldX
+  local y = cwy - pp.worldY
+  local dx = (x * d - y * b) * id - px
+  local dy = (y * a - x * c) * id - py
+  local l1 = math_sqrt(dx * dx + dy * dy)
+  local l2 = child.data.length * csx
+  local a1 = 0
+  local a2 = 0
+  if l1 < 0.0001 then
+    self:apply1(parent, targetX, targetY, false, stretch, false, alpha)
+    child:updateWorldTransformWith(cx, cy, 0, child.ascaleX, child.ascaleY, child.ashearX, child.ashearY)
+    return
+  end
+  x = targetX - pp.worldX
+  y = targetY - pp.worldY
+  local tx = (x * d - y * b) * id - px
+  local ty = (y * a - x * c) * id - py
+  local dd = tx * tx + ty * ty
+  if softness ~= 0 then
+    softness = softness * (psx * (csx + 1) / 2)
+    local td = math_sqrt(dd)
+    local sd = td - l1 - l2 * psx + softness
+    if sd > 0 then
+      local p = math_min(1, sd / (softness * 2)) - 1
+      p = (sd - softness * (1 - p * p)) / td
+      tx = tx - p * tx
+      ty = ty - p * ty
+      dd = tx * tx + ty * ty
+    end
+  end
 
 	if u then
 		l2 = l2 * psx

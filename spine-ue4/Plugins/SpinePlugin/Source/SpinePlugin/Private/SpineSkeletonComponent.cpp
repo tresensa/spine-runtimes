@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #include "SpinePluginPrivatePCH.h"
@@ -42,7 +41,7 @@ USpineSkeletonComponent::USpineSkeletonComponent () {
 	bAutoActivate = true;
 }
 
-bool USpineSkeletonComponent::SetSkin(const FString& skinName) {
+bool USpineSkeletonComponent::SetSkin (const FString skinName) {
 	CheckState();
 	if (skeleton) {
 		Skin* skin = skeleton->getData()->findSkin(TCHAR_TO_UTF8(*skinName));
@@ -53,7 +52,24 @@ bool USpineSkeletonComponent::SetSkin(const FString& skinName) {
 	else return false;
 }
 
-bool USpineSkeletonComponent::SetAttachment (const FString& slotName, const FString& attachmentName) {
+void USpineSkeletonComponent::GetSkins (TArray<FString> &Skins) {
+	CheckState();
+	if (skeleton) {
+		for (size_t i = 0, n = skeleton->getData()->getSkins().size(); i < n; i++) {
+			Skins.Add(skeleton->getData()->getSkins()[i]->getName().buffer());
+		}
+	}
+}
+
+bool USpineSkeletonComponent::HasSkin (const FString skinName) {
+	CheckState();
+	if (skeleton) {
+		return skeleton->getData()->findAnimation(TCHAR_TO_UTF8(*skinName)) != nullptr;
+	}
+	return false;
+}
+
+bool USpineSkeletonComponent::SetAttachment (const FString slotName, const FString attachmentName) {
 	CheckState();
 	if (skeleton) {
 		if (!skeleton->getAttachment(TCHAR_TO_UTF8(*slotName), TCHAR_TO_UTF8(*attachmentName))) return false;
@@ -127,7 +143,7 @@ void USpineSkeletonComponent::SetBoneWorldPosition (const FString& BoneName, con
 	}
 }
 
-void USpineSkeletonComponent::UpdateWorldTransform() {
+void USpineSkeletonComponent::UpdateWorldTransform () {
 	CheckState();
 	if (skeleton) {
 		skeleton->updateWorldTransform();
@@ -154,30 +170,82 @@ void USpineSkeletonComponent::SetScaleX (float scaleX) {
 	if (skeleton) skeleton->setScaleX(scaleX);
 }
 
-float USpineSkeletonComponent::GetScaleX() {
+float USpineSkeletonComponent::GetScaleX () {
 	CheckState();
 	if (skeleton) return skeleton->getScaleX();
 	return 1;
 }
 
-void USpineSkeletonComponent::SetScaleY(float scaleY) {
+void USpineSkeletonComponent::SetScaleY (float scaleY) {
 	CheckState();
 	if (skeleton) skeleton->setScaleY(scaleY);
 }
 
-float USpineSkeletonComponent::GetScaleY() {
+float USpineSkeletonComponent::GetScaleY () {
 	CheckState();
 	if (skeleton) return skeleton->getScaleY();
 	return 1;
 }
 
-void USpineSkeletonComponent::GetBones(TArray<FString> &Bones) {
+void USpineSkeletonComponent::GetBones (TArray<FString> &Bones) {
 	CheckState();
 	if (skeleton) {
 		for (size_t i = 0, n = skeleton->getBones().size(); i < n; i++) {
 			Bones.Add(skeleton->getBones()[i]->getData().getName().buffer());
 		}
 	}
+}
+
+bool USpineSkeletonComponent::HasBone (const FString BoneName) {
+	CheckState();
+	if (skeleton) {
+		return skeleton->getData()->findBone(TCHAR_TO_UTF8(*BoneName)) != nullptr;
+	}
+	return false;
+}
+
+void USpineSkeletonComponent::GetSlots (TArray<FString> &Slots) {
+	CheckState();
+	if (skeleton) {
+		for (size_t i = 0, n = skeleton->getSlots().size(); i < n; i++) {
+			Slots.Add(skeleton->getSlots()[i]->getData().getName().buffer());
+		}
+	}
+}
+
+bool USpineSkeletonComponent::HasSlot (const FString SlotName) {
+	CheckState();
+	if (skeleton) {
+		return skeleton->getData()->findSlot(TCHAR_TO_UTF8(*SlotName)) != nullptr;
+	}
+	return false;
+}
+
+void USpineSkeletonComponent::GetAnimations(TArray<FString> &Animations) {
+	CheckState();
+	if (skeleton) {
+		for (size_t i = 0, n = skeleton->getData()->getAnimations().size(); i < n; i++) {
+			Animations.Add(skeleton->getData()->getAnimations()[i]->getName().buffer());
+		}
+	}
+}
+
+bool USpineSkeletonComponent::HasAnimation(FString AnimationName) {
+	CheckState();
+	if (skeleton) {
+		return skeleton->getData()->findAnimation(TCHAR_TO_UTF8(*AnimationName)) != nullptr;
+	}
+	return false;
+}
+
+float USpineSkeletonComponent::GetAnimationDuration(FString AnimationName) {
+	CheckState();
+	if (skeleton) {
+		Animation *animation = skeleton->getData()->findAnimation(TCHAR_TO_UTF8(*AnimationName));
+		if (animation == nullptr) return 0;
+		else return animation->getDuration();
+	}
+	return 0;
 }
 
 void USpineSkeletonComponent::BeginPlay() {
@@ -189,7 +257,7 @@ void USpineSkeletonComponent::TickComponent (float DeltaTime, ELevelTick TickTyp
 	InternalTick(DeltaTime);
 }
 
-void USpineSkeletonComponent::InternalTick(float DeltaTime, bool CallDelegates) {
+void USpineSkeletonComponent::InternalTick(float DeltaTime, bool CallDelegates, bool Preview) {
 	CheckState();
 
 	if (skeleton) {
@@ -206,7 +274,7 @@ void USpineSkeletonComponent::CheckState () {
 		// Are we doing a re-import? Then check if the underlying spine-cpp data
 		// has changed.
 		if (lastAtlas && lastAtlas == Atlas && lastData && lastData == SkeletonData) {
-			spine::Atlas* atlas = Atlas->GetAtlas(false);
+			spine::Atlas* atlas = Atlas->GetAtlas();
 			if (lastSpineAtlas != atlas) {
 				needsUpdate = true;
 			}
@@ -220,12 +288,12 @@ void USpineSkeletonComponent::CheckState () {
 		DisposeState();
 		
 		if (Atlas && SkeletonData) {
-			spine::SkeletonData* data = SkeletonData->GetSkeletonData(Atlas->GetAtlas(false), false);
+			spine::SkeletonData* data = SkeletonData->GetSkeletonData(Atlas->GetAtlas());
 			skeleton = new (__FILE__, __LINE__) Skeleton(data);
 		}
 		
 		lastAtlas = Atlas;
-		lastSpineAtlas = Atlas ? Atlas->GetAtlas(false) : nullptr;
+		lastSpineAtlas = Atlas ? Atlas->GetAtlas() : nullptr;
 		lastData = SkeletonData;
 	}
 }

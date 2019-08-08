@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #include "SpinePluginPrivatePCH.h"
@@ -76,103 +75,110 @@ void USpineSkeletonRendererComponent::TickComponent (float DeltaTime, ELevelTick
 		UClass* skeletonClass = USpineSkeletonComponent::StaticClass();
 		USpineSkeletonComponent* skeleton = Cast<USpineSkeletonComponent>(owner->GetComponentByClass(skeletonClass));
 		
-		if (skeleton && !skeleton->IsBeingDestroyed() && skeleton->GetSkeleton() && skeleton->Atlas) {
-			skeleton->GetSkeleton()->getColor().set(Color.R, Color.G, Color.B, Color.A);
-
-			if (atlasNormalBlendMaterials.Num() != skeleton->Atlas->atlasPages.Num()) {
-				atlasNormalBlendMaterials.SetNum(0);
-				pageToNormalBlendMaterial.Empty();
-				atlasAdditiveBlendMaterials.SetNum(0);
-				pageToAdditiveBlendMaterial.Empty();
-				atlasMultiplyBlendMaterials.SetNum(0);
-				pageToMultiplyBlendMaterial.Empty();
-				atlasScreenBlendMaterials.SetNum(0);
-				pageToScreenBlendMaterial.Empty();
-								
-				for (int i = 0; i < skeleton->Atlas->atlasPages.Num(); i++) {
-					AtlasPage* currPage = skeleton->Atlas->GetAtlas(false)->getPages()[i];
-					
-					UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(NormalBlendMaterial, owner);
-					material->SetTextureParameterValue(TextureParameterName, skeleton->Atlas->atlasPages[i]);
-					atlasNormalBlendMaterials.Add(material);
-					pageToNormalBlendMaterial.Add(currPage, material);
-					
-					material = UMaterialInstanceDynamic::Create(AdditiveBlendMaterial, owner);
-					material->SetTextureParameterValue(TextureParameterName, skeleton->Atlas->atlasPages[i]);
-					atlasAdditiveBlendMaterials.Add(material);
-					pageToAdditiveBlendMaterial.Add(currPage, material);
-					
-					material = UMaterialInstanceDynamic::Create(MultiplyBlendMaterial, owner);
-					material->SetTextureParameterValue(TextureParameterName, skeleton->Atlas->atlasPages[i]);
-					atlasMultiplyBlendMaterials.Add(material);
-					pageToMultiplyBlendMaterial.Add(currPage, material);
-					
-					material = UMaterialInstanceDynamic::Create(ScreenBlendMaterial, owner);
-					material->SetTextureParameterValue(TextureParameterName, skeleton->Atlas->atlasPages[i]);
-					atlasScreenBlendMaterials.Add(material);
-					pageToScreenBlendMaterial.Add(currPage, material);					
-				}
-			} else {
-				pageToNormalBlendMaterial.Empty();
-				pageToAdditiveBlendMaterial.Empty();
-				pageToMultiplyBlendMaterial.Empty();
-				pageToScreenBlendMaterial.Empty();
-								
-				for (int i = 0; i < skeleton->Atlas->atlasPages.Num(); i++) {
-					AtlasPage* currPage = skeleton->Atlas->GetAtlas(false)->getPages()[i];
-
-					UTexture2D* texture = skeleton->Atlas->atlasPages[i];
-					UTexture* oldTexture = nullptr;
-					
-					UMaterialInstanceDynamic* current = atlasNormalBlendMaterials[i];
-					if(!current || !current->GetTextureParameterValue(TextureParameterName, oldTexture) || oldTexture != texture) {
-						UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(NormalBlendMaterial, owner);
-						material->SetTextureParameterValue(TextureParameterName, texture);
-						atlasNormalBlendMaterials[i] = material;
-					}
-					pageToNormalBlendMaterial.Add(currPage, atlasNormalBlendMaterials[i]);
-					
-					current = atlasAdditiveBlendMaterials[i];
-					if(!current || !current->GetTextureParameterValue(TextureParameterName, oldTexture) || oldTexture != texture) {
-						UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(AdditiveBlendMaterial, owner);
-						material->SetTextureParameterValue(TextureParameterName, texture);
-						atlasAdditiveBlendMaterials[i] = material;
-					}
-					pageToAdditiveBlendMaterial.Add(currPage, atlasAdditiveBlendMaterials[i]);
-					
-					current = atlasMultiplyBlendMaterials[i];
-					if(!current || !current->GetTextureParameterValue(TextureParameterName, oldTexture) || oldTexture != texture) {
-						UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(MultiplyBlendMaterial, owner);
-						material->SetTextureParameterValue(TextureParameterName, texture);
-						atlasMultiplyBlendMaterials[i] = material;
-					}
-					pageToMultiplyBlendMaterial.Add(currPage, atlasMultiplyBlendMaterials[i]);
-					
-					current = atlasScreenBlendMaterials[i];
-					if(!current || !current->GetTextureParameterValue(TextureParameterName, oldTexture) || oldTexture != texture) {
-						UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(ScreenBlendMaterial, owner);
-						material->SetTextureParameterValue(TextureParameterName, texture);
-						atlasScreenBlendMaterials[i] = material;
-					}
-					pageToScreenBlendMaterial.Add(currPage, atlasScreenBlendMaterials[i]);
-				}
-			}
-			UpdateMesh(skeleton->GetSkeleton());
-		} else {
-			ClearAllMeshSections();
-		}
+		UpdateRenderer(skeleton);
 	}
 }
 
+void USpineSkeletonRendererComponent::UpdateRenderer(USpineSkeletonComponent* skeleton)
+{
+	if (skeleton && !skeleton->IsBeingDestroyed() && skeleton->GetSkeleton() && skeleton->Atlas) {
+		skeleton->GetSkeleton()->getColor().set(Color.R, Color.G, Color.B, Color.A);
 
-void USpineSkeletonRendererComponent::Flush (int &Idx, TArray<FVector> &Vertices, TArray<int32> &Indices, TArray<FVector2D> &Uvs, TArray<FColor> &Colors, TArray<FVector>& Colors2, UMaterialInstanceDynamic* Material) {
+		if (atlasNormalBlendMaterials.Num() != skeleton->Atlas->atlasPages.Num()) {
+			atlasNormalBlendMaterials.SetNum(0);
+			pageToNormalBlendMaterial.Empty();
+			atlasAdditiveBlendMaterials.SetNum(0);
+			pageToAdditiveBlendMaterial.Empty();
+			atlasMultiplyBlendMaterials.SetNum(0);
+			pageToMultiplyBlendMaterial.Empty();
+			atlasScreenBlendMaterials.SetNum(0);
+			pageToScreenBlendMaterial.Empty();
+
+			for (int i = 0; i < skeleton->Atlas->atlasPages.Num(); i++) {
+				AtlasPage* currPage = skeleton->Atlas->GetAtlas()->getPages()[i];
+
+				UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(NormalBlendMaterial, this);
+				material->SetTextureParameterValue(TextureParameterName, skeleton->Atlas->atlasPages[i]);
+				atlasNormalBlendMaterials.Add(material);
+				pageToNormalBlendMaterial.Add(currPage, material);
+
+				material = UMaterialInstanceDynamic::Create(AdditiveBlendMaterial, this);
+				material->SetTextureParameterValue(TextureParameterName, skeleton->Atlas->atlasPages[i]);
+				atlasAdditiveBlendMaterials.Add(material);
+				pageToAdditiveBlendMaterial.Add(currPage, material);
+
+				material = UMaterialInstanceDynamic::Create(MultiplyBlendMaterial, this);
+				material->SetTextureParameterValue(TextureParameterName, skeleton->Atlas->atlasPages[i]);
+				atlasMultiplyBlendMaterials.Add(material);
+				pageToMultiplyBlendMaterial.Add(currPage, material);
+
+				material = UMaterialInstanceDynamic::Create(ScreenBlendMaterial, this);
+				material->SetTextureParameterValue(TextureParameterName, skeleton->Atlas->atlasPages[i]);
+				atlasScreenBlendMaterials.Add(material);
+				pageToScreenBlendMaterial.Add(currPage, material);
+			}
+		}
+		else {
+			pageToNormalBlendMaterial.Empty();
+			pageToAdditiveBlendMaterial.Empty();
+			pageToMultiplyBlendMaterial.Empty();
+			pageToScreenBlendMaterial.Empty();
+
+			for (int i = 0; i < skeleton->Atlas->atlasPages.Num(); i++) {
+				AtlasPage* currPage = skeleton->Atlas->GetAtlas()->getPages()[i];
+
+				UTexture2D* texture = skeleton->Atlas->atlasPages[i];
+				UTexture* oldTexture = nullptr;
+
+				UMaterialInstanceDynamic* current = atlasNormalBlendMaterials[i];
+				if (!current || !current->GetTextureParameterValue(TextureParameterName, oldTexture) || oldTexture != texture) {
+					UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(NormalBlendMaterial, this);
+					material->SetTextureParameterValue(TextureParameterName, texture);
+					atlasNormalBlendMaterials[i] = material;
+				}
+				pageToNormalBlendMaterial.Add(currPage, atlasNormalBlendMaterials[i]);
+
+				current = atlasAdditiveBlendMaterials[i];
+				if (!current || !current->GetTextureParameterValue(TextureParameterName, oldTexture) || oldTexture != texture) {
+					UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(AdditiveBlendMaterial, this);
+					material->SetTextureParameterValue(TextureParameterName, texture);
+					atlasAdditiveBlendMaterials[i] = material;
+				}
+				pageToAdditiveBlendMaterial.Add(currPage, atlasAdditiveBlendMaterials[i]);
+
+				current = atlasMultiplyBlendMaterials[i];
+				if (!current || !current->GetTextureParameterValue(TextureParameterName, oldTexture) || oldTexture != texture) {
+					UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(MultiplyBlendMaterial, this);
+					material->SetTextureParameterValue(TextureParameterName, texture);
+					atlasMultiplyBlendMaterials[i] = material;
+				}
+				pageToMultiplyBlendMaterial.Add(currPage, atlasMultiplyBlendMaterials[i]);
+
+				current = atlasScreenBlendMaterials[i];
+				if (!current || !current->GetTextureParameterValue(TextureParameterName, oldTexture) || oldTexture != texture) {
+					UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(ScreenBlendMaterial, this);
+					material->SetTextureParameterValue(TextureParameterName, texture);
+					atlasScreenBlendMaterials[i] = material;
+				}
+				pageToScreenBlendMaterial.Add(currPage, atlasScreenBlendMaterials[i]);
+			}
+		}
+		UpdateMesh(skeleton->GetSkeleton());
+	}
+	else {
+		ClearAllMeshSections();
+	}
+}
+
+void USpineSkeletonRendererComponent::Flush (int &Idx, TArray<FVector> &Vertices, TArray<int32> &Indices, TArray<FVector> &Normals, TArray<FVector2D> &Uvs, TArray<FColor> &Colors, TArray<FVector>& Colors2, UMaterialInstanceDynamic* Material) {
 	if (Vertices.Num() == 0) return;
 	SetMaterial(Idx, Material);
 
-	CreateMeshSection(Idx, Vertices, Indices, TArray<FVector>(), Uvs, Colors, TArray<FProcMeshTangent>(), bCreateCollision);
+	CreateMeshSection(Idx, Vertices, Indices, Normals, Uvs, Colors, TArray<FProcMeshTangent>(), bCreateCollision);
 
 	Vertices.SetNum(0);
 	Indices.SetNum(0);
+	Normals.SetNum(0);
 	Uvs.SetNum(0);
 	Colors.SetNum(0);
 	Colors2.SetNum(0);
@@ -182,6 +188,7 @@ void USpineSkeletonRendererComponent::Flush (int &Idx, TArray<FVector> &Vertices
 void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 	TArray<FVector> vertices;
 	TArray<int32> indices;
+	TArray<FVector> normals;
 	TArray<FVector2D> uvs;
 	TArray<FColor> colors;
 	TArray<FVector> darkColors;
@@ -199,7 +206,7 @@ void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 	unsigned short quadIndices[] = { 0, 1, 2, 0, 2, 3 };
 
 	for (size_t i = 0; i < Skeleton->getSlots().size(); ++i) {
-		Vector<float> &attachmentVertices = worldVertices;
+		Vector<float> *attachmentVertices = &worldVertices;
 		unsigned short* attachmentIndices = nullptr;
 		int numVertices;
 		int numIndices;
@@ -211,7 +218,7 @@ void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 		Slot* slot = Skeleton->getDrawOrder()[i];
 		Attachment* attachment = slot->getAttachment();
 
-		if (slot->getColor().a == 0) {
+		if (slot->getColor().a == 0 || !slot->getBone().isActive()) {
 			clipper.clipEnd(*slot);
 			continue;
 		}
@@ -230,7 +237,7 @@ void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 
 			attachmentColor.set(regionAttachment->getColor());
 			attachmentAtlasRegion = (AtlasRegion*)regionAttachment->getRendererObject();
-			regionAttachment->computeWorldVertices(slot->getBone(), attachmentVertices, 0, 2);
+			regionAttachment->computeWorldVertices(slot->getBone(), *attachmentVertices, 0, 2);
 			attachmentIndices = quadIndices;
 			attachmentUvs = regionAttachment->getUVs().buffer();
 			numVertices = 4;
@@ -246,7 +253,7 @@ void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 
 			attachmentColor.set(mesh->getColor());
 			attachmentAtlasRegion = (AtlasRegion*)mesh->getRendererObject();			
-			mesh->computeWorldVertices(*slot, 0, mesh->getWorldVerticesLength(), attachmentVertices, 0, 2);
+			mesh->computeWorldVertices(*slot, 0, mesh->getWorldVerticesLength(), *attachmentVertices, 0, 2);
 			attachmentIndices = mesh->getTriangles().buffer();
 			attachmentUvs = mesh->getUVs().buffer();
 			numVertices = mesh->getWorldVerticesLength() >> 1;
@@ -284,8 +291,8 @@ void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 		}
 
 		if (clipper.isClipping()) {
-			clipper.clipTriangles(attachmentVertices.buffer(), attachmentIndices, numIndices, attachmentUvs, 2);
-			attachmentVertices = clipper.getClippedVertices();
+			clipper.clipTriangles(attachmentVertices->buffer(), attachmentIndices, numIndices, attachmentUvs, 2);
+			attachmentVertices = &clipper.getClippedVertices();
 			numVertices = clipper.getClippedVertices().size() >> 1;
 			attachmentIndices = clipper.getClippedTriangles().buffer();
 			numIndices = clipper.getClippedTriangles().size();
@@ -294,7 +301,7 @@ void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 		}
 
 		if (lastMaterial != material) {
-			Flush(meshSection, vertices, indices, uvs, colors, darkColors, lastMaterial);
+			Flush(meshSection, vertices, indices, normals, uvs, colors, darkColors, lastMaterial);
 			lastMaterial = material;
 			idx = 0;
 		}
@@ -310,10 +317,12 @@ void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 		float dg = slot->hasDarkColor() ? slot->getDarkColor().g : 0.0f;
 		float db = slot->hasDarkColor() ? slot->getDarkColor().b : 0.0f;		
 
+		float* verticesPtr = attachmentVertices->buffer();
 		for (int j = 0; j < numVertices << 1; j += 2) {
 			colors.Add(FColor(r, g, b, a));
 			darkColors.Add(FVector(dr, dg, db));
-			vertices.Add(FVector(attachmentVertices[j], depthOffset, attachmentVertices[j + 1]));
+			vertices.Add(FVector(verticesPtr[j], depthOffset, verticesPtr[j + 1]));
+			normals.Add(FVector(0, -1, 0));
 			uvs.Add(FVector2D(attachmentUvs[j], attachmentUvs[j + 1]));
 		}
 
@@ -327,7 +336,7 @@ void USpineSkeletonRendererComponent::UpdateMesh(Skeleton* Skeleton) {
 		clipper.clipEnd(*slot);			
 	}
 	
-	Flush(meshSection, vertices, indices, uvs, colors, darkColors, lastMaterial);
+	Flush(meshSection, vertices, indices, normals, uvs, colors, darkColors, lastMaterial);
 	clipper.clipEnd();
 }
 

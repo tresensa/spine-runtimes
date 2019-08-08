@@ -1,32 +1,31 @@
 /******************************************************************************
-* Spine Runtimes Software License v2.5
-*
-* Copyright (c) 2013-2016, Esoteric Software
-* All rights reserved.
-*
-* You are granted a perpetual, non-exclusive, non-sublicensable, and
-* non-transferable license to use, install, execute, and perform the Spine
-* Runtimes software and derivative works solely for personal or internal
-* use. Without the written permission of Esoteric Software (see Section 2 of
-* the Spine Software License Agreement), you may not (a) modify, translate,
-* adapt, or develop new applications using the Spine Runtimes or otherwise
-* create derivative works or improvements of the Spine Runtimes or (b) remove,
-* delete, alter, or obscure any trademarks or any copyright, trademark, patent,
-* or other intellectual property or proprietary rights notices on or in the
-* Software, including any copy thereof. Redistributions in binary or source
-* form must include this license and terms.
-*
-* THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
-* IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-* EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-* PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
-* USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-* ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-* POSSIBILITY OF SUCH DAMAGE.
-*****************************************************************************/
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
+ *
+ * Copyright (c) 2013-2019, Esoteric Software LLC
+ *
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
+ *
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *****************************************************************************/
 
 #include "SpinePluginPrivatePCH.h"
 
@@ -51,6 +50,13 @@ void SSpineWidget::Construct(const FArguments& args) {
 
 void SSpineWidget::SetData(USpineWidget* Widget) {
 	this->widget = Widget;
+	if (widget && widget->skeleton && widget->Atlas) {
+		Skeleton *skeleton = widget->skeleton;
+		skeleton->setToSetupPose();
+		skeleton->updateWorldTransform();
+		Vector<float> scratchBuffer;
+		skeleton->getBounds(this->boundsMin.X, this->boundsMin.Y, this->boundsSize.X, this->boundsSize.Y, scratchBuffer);
+	}
 }
 
 static void setVertex(FSlateVertex* vertex, float x, float y, float u, float v, const FColor& color, const FVector2D& offset) {
@@ -71,8 +77,9 @@ int32 SSpineWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 							   int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const {
 
 	SSpineWidget* self = (SSpineWidget*)this;
+	UMaterialInstanceDynamic* MatNow = nullptr;
 
-	if (widget && widget->skeleton && widget->Atlas) {		
+	if (widget && widget->skeleton && widget->Atlas) {
 		widget->skeleton->getColor().set(widget->Color.R, widget->Color.G, widget->Color.B, widget->Color.A);
 
 		if (widget->atlasNormalBlendMaterials.Num() != widget->Atlas->atlasPages.Num()) {
@@ -86,7 +93,7 @@ int32 SSpineWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 			widget->pageToScreenBlendMaterial.Empty();
 
 			for (int i = 0; i < widget->Atlas->atlasPages.Num(); i++) {
-				AtlasPage* currPage = widget->Atlas->GetAtlas(false)->getPages()[i];
+				AtlasPage* currPage = widget->Atlas->GetAtlas()->getPages()[i];
 
 				UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(widget->NormalBlendMaterial, widget);
 				material->SetTextureParameterValue(widget->TextureParameterName, widget->Atlas->atlasPages[i]);
@@ -115,7 +122,7 @@ int32 SSpineWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 			widget->pageToScreenBlendMaterial.Empty();
 
 			for (int i = 0; i < widget->Atlas->atlasPages.Num(); i++) {
-				AtlasPage* currPage = widget->Atlas->GetAtlas(false)->getPages()[i];
+				AtlasPage* currPage = widget->Atlas->GetAtlas()->getPages()[i];
 
 				UTexture2D* texture = widget->Atlas->atlasPages[i];
 				UTexture* oldTexture = nullptr;
@@ -153,38 +160,8 @@ int32 SSpineWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 				widget->pageToScreenBlendMaterial.Add(currPage, widget->atlasScreenBlendMaterials[i]);
 			}
 		}
-		// self->UpdateMesh(LayerId, OutDrawElements, AllottedGeometry, widget->skeleton);
-	}
-	//return LayerId;
-	
-	self->renderData.IndexData.SetNumUninitialized(6);
-	uint32* indexData = (uint32*)renderData.IndexData.GetData();
-	indexData[0] = 0;
-	indexData[1] = 1;
-	indexData[2] = 2;
-	indexData[3] = 2;
-	indexData[4] = 3;
-	indexData[5] = 0;
 
-	self->renderData.VertexData.SetNumUninitialized(4);
-	FSlateVertex* vertexData = (FSlateVertex*)renderData.VertexData.GetData();
-	FVector2D offset = AllottedGeometry.AbsolutePosition;
-	FColor white = FColor(0xffffffff);
-
-	float width = AllottedGeometry.GetAbsoluteSize().X;
-	float height = AllottedGeometry.GetAbsoluteSize().Y;
-
-	setVertex(&vertexData[0], 0, 0, 0, 0, white, offset);
-	setVertex(&vertexData[1], width, 0, 1, 0, white, offset);
-	setVertex(&vertexData[2], width, height, 1, 1, white, offset);
-	setVertex(&vertexData[3], 0, height, 0, 1, white, offset);
-
-	if (brush && renderData.VertexData.Num() > 0 && renderData.IndexData.Num() > 0) {
-		FSlateShaderResourceProxy* shaderResource = FSlateDataPayload::ResourceManager->GetShaderResource(widget->Brush);
-		FSlateResourceHandle resourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(widget->Brush);
-		if (shaderResource)
-			FSlateDrawElement::MakeCustomVerts(OutDrawElements, LayerId, resourceHandle, renderData.VertexData,
-											   renderData.IndexData, nullptr, 0, 0);
+		self->UpdateMesh(LayerId, OutDrawElements, AllottedGeometry, widget->skeleton);
 	}
 
 	return LayerId;
@@ -193,31 +170,38 @@ int32 SSpineWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 void SSpineWidget::Flush(int32 LayerId, FSlateWindowElementList& OutDrawElements, const FGeometry& AllottedGeometry, int &Idx, TArray<FVector> &Vertices, TArray<int32> &Indices, TArray<FVector2D> &Uvs, TArray<FColor> &Colors, TArray<FVector>& Colors2, UMaterialInstanceDynamic* Material) {
 	if (Vertices.Num() == 0) return;
 	SSpineWidget* self = (SSpineWidget*)this;
-	
-	self->renderData.IndexData.SetNumUninitialized(Indices.Num());
-	uint32* indexData = (uint32*)renderData.IndexData.GetData();
-	memcpy(indexData, Indices.GetData(), sizeof(uint32) * Indices.Num());
 
+	const FVector2D widgetSize = AllottedGeometry.GetDrawSize();
+	const FVector2D sizeScale = widgetSize / FVector2D(boundsSize.X, boundsSize.Y);
+	const float setupScale = sizeScale.GetMin();
+
+	for (int i = 0; i < Vertices.Num(); i++) {
+		Vertices[i] = (Vertices[i] + FVector(-boundsMin.X - boundsSize.X / 2, boundsMin.Y + boundsSize.Y / 2, 0)) * setupScale * widget->Scale + FVector(widgetSize.X / 2, widgetSize.Y / 2, 0);
+	}
+
+	self->renderData.IndexData.SetNumUninitialized(Indices.Num());
+	SlateIndex* indexData = (SlateIndex*)renderData.IndexData.GetData();
+	for (int i = 0; i < Indices.Num(); i++) {
+		indexData[i] = (SlateIndex)Indices[i];
+	}
+	
 	self->renderData.VertexData.SetNumUninitialized(Vertices.Num());
 	FSlateVertex* vertexData = (FSlateVertex*)renderData.VertexData.GetData();
 	FVector2D offset = AllottedGeometry.AbsolutePosition;
 	FColor white = FColor(0xffffffff);
 
-	float width = AllottedGeometry.GetAbsoluteSize().X;
-	float height = AllottedGeometry.GetAbsoluteSize().Y;
-
 	for (size_t i = 0; i < (size_t)Vertices.Num(); i++) {
 		setVertex(&vertexData[i], Vertices[i].X, Vertices[i].Y, Uvs[i].X, Uvs[i].Y, Colors[i], offset);
 	}
 
-	FSlateBrush brush;
-	brush.SetResourceObject(Material);
-	brush = widget->Brush;
+	brush = &widget->Brush;
+	if (Material) {
+		renderData.Brush = MakeShareable(new FSlateMaterialBrush(*Material, FVector2D(64, 64)));
+		renderData.RenderingResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*renderData.Brush);
+	}
 
-	FSlateShaderResourceProxy* shaderResource = FSlateDataPayload::ResourceManager->GetShaderResource(brush);	
-	if (shaderResource) {
-		FSlateResourceHandle resourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(brush);
-		FSlateDrawElement::MakeCustomVerts(OutDrawElements, LayerId, resourceHandle, renderData.VertexData, renderData.IndexData, nullptr, 0, 0);
+	if (renderData.RenderingResourceHandle.IsValid()) {
+		FSlateDrawElement::MakeCustomVerts(OutDrawElements, LayerId, renderData.RenderingResourceHandle, renderData.VertexData, renderData.IndexData, nullptr, 0, 0);
 	}
 
 	Vertices.SetNum(0);
@@ -246,7 +230,7 @@ void SSpineWidget::UpdateMesh(int32 LayerId, FSlateWindowElementList& OutDrawEle
 	unsigned short quadIndices[] = { 0, 1, 2, 0, 2, 3 };
 
 	for (int i = 0; i < (int)Skeleton->getSlots().size(); ++i) {
-		Vector<float> &attachmentVertices = worldVertices;
+		Vector<float> *attachmentVertices = &worldVertices;
 		unsigned short* attachmentIndices = nullptr;
 		int numVertices;
 		int numIndices;
@@ -256,6 +240,8 @@ void SSpineWidget::UpdateMesh(int32 LayerId, FSlateWindowElementList& OutDrawEle
 		float* attachmentUvs = nullptr;
 
 		Slot* slot = Skeleton->getDrawOrder()[i];
+		if (!slot->getBone().isActive()) continue;
+
 		Attachment* attachment = slot->getAttachment();
 		if (!attachment) continue;
 		if (!attachment->getRTTI().isExactly(RegionAttachment::rtti) && !attachment->getRTTI().isExactly(MeshAttachment::rtti) && !attachment->getRTTI().isExactly(ClippingAttachment::rtti)) continue;
@@ -264,7 +250,7 @@ void SSpineWidget::UpdateMesh(int32 LayerId, FSlateWindowElementList& OutDrawEle
 			RegionAttachment* regionAttachment = (RegionAttachment*)attachment;
 			attachmentColor.set(regionAttachment->getColor());
 			attachmentAtlasRegion = (AtlasRegion*)regionAttachment->getRendererObject();
-			regionAttachment->computeWorldVertices(slot->getBone(), attachmentVertices, 0, 2);
+			regionAttachment->computeWorldVertices(slot->getBone(), *attachmentVertices, 0, 2);
 			attachmentIndices = quadIndices;
 			attachmentUvs = regionAttachment->getUVs().buffer();
 			numVertices = 4;
@@ -274,7 +260,7 @@ void SSpineWidget::UpdateMesh(int32 LayerId, FSlateWindowElementList& OutDrawEle
 			MeshAttachment* mesh = (MeshAttachment*)attachment;
 			attachmentColor.set(mesh->getColor());
 			attachmentAtlasRegion = (AtlasRegion*)mesh->getRendererObject();
-			mesh->computeWorldVertices(*slot, 0, mesh->getWorldVerticesLength(), attachmentVertices, 0, 2);
+			mesh->computeWorldVertices(*slot, 0, mesh->getWorldVerticesLength(), *attachmentVertices, 0, 2);
 			attachmentIndices = mesh->getTriangles().buffer();
 			attachmentUvs = mesh->getUVs().buffer();
 			numVertices = mesh->getWorldVerticesLength() >> 1;
@@ -313,8 +299,8 @@ void SSpineWidget::UpdateMesh(int32 LayerId, FSlateWindowElementList& OutDrawEle
 		}
 
 		if (clipper.isClipping()) {
-			clipper.clipTriangles(attachmentVertices.buffer(), attachmentIndices, numIndices, attachmentUvs, 2);
-			attachmentVertices = clipper.getClippedVertices();
+			clipper.clipTriangles(attachmentVertices->buffer(), attachmentIndices, numIndices, attachmentUvs, 2);
+			attachmentVertices = &clipper.getClippedVertices();
 			numVertices = clipper.getClippedVertices().size() >> 1;
 			attachmentIndices = clipper.getClippedTriangles().buffer();
 			numIndices = clipper.getClippedTriangles().size();
@@ -337,10 +323,11 @@ void SSpineWidget::UpdateMesh(int32 LayerId, FSlateWindowElementList& OutDrawEle
 		float dg = slot->hasDarkColor() ? slot->getDarkColor().g : 0.0f;
 		float db = slot->hasDarkColor() ? slot->getDarkColor().b : 0.0f;
 
+		float* verticesPtr = attachmentVertices->buffer();
 		for (int j = 0; j < numVertices << 1; j += 2) {
 			colors.Add(FColor(r, g, b, a));
 			darkColors.Add(FVector(dr, dg, db));
-			vertices.Add(FVector(attachmentVertices[j], depthOffset, attachmentVertices[j + 1]));
+			vertices.Add(FVector(verticesPtr[j], -verticesPtr[j + 1], depthOffset));
 			uvs.Add(FVector2D(attachmentUvs[j], attachmentUvs[j + 1]));
 		}
 

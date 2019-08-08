@@ -67,6 +67,13 @@ spine-xna/.vs/
 
 spine-unity/Assets/spine-csharp*
 !spine-unity/Assets/spine-csharp/Place spine-csharp src here.*
+!spine-unity/Assets/spine-csharp/add spine-csharp src here.*
+spine-unity/Assets/Spine/Runtime/spine-csharp*
+!spine-unity/Assets/Spine/Runtime/spine-csharp/add spine-csharp here.txt.meta
+spine-unity/Assets/Tests/
+spine-unity/Assets/Tests.meta
+spine-unity/spine-unity.Editor.csproj
+spine-unity/spine-unity.csproj
 spine-unity/spine-unity.CSharp.csproj
 spine-unity/spine-unity.CSharp.Editor.csproj
 spine-unity/ProjectSettings
@@ -77,6 +84,17 @@ spine-unity/obj
 Assembly-*.csproj
 Assembly-*.pidb
 AssetStoreTools*
+
+examples/spine-unity/eyes/export/
+examples/spine-unity/footsoldier/export/
+examples/spine-unity/gauge/export/
+examples/spine-unity/hero/export/
+examples/spine-unity/raggedyspineboy/export/
+examples/spine-unity/raptor/export/
+examples/spine-unity/spineboy-pro/export/
+examples/spine-unity/spineboy-unity/export/
+examples/spine-unity/spineunitygirl/export/
+examples/spine-unity/whirlyblendmodes/export/
 
 spine-tk2d/Assets/spine-csharp*
 !spine-tk2d/Assets/spine-csharp/Place spine-csharp src here.*

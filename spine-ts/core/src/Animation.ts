@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 module spine {
@@ -90,7 +89,7 @@ module spine {
 	}
 
 	export enum MixDirection {
-		in, out
+		mixIn, mixOut
 	}
 
 	export enum TimelineType {
@@ -220,6 +219,7 @@ module spine {
 			let frames = this.frames;
 
 			let bone = skeleton.bones[this.boneIndex];
+			if (!bone.active) return;
 			if (time < frames[0]) {
 				switch (blend) {
 				case MixBlend.setup:
@@ -233,7 +233,7 @@ module spine {
 			}
 
 			if (time >= frames[frames.length - RotateTimeline.ENTRIES]) { // Time is after last frame.
-				var r = frames[frames.length + RotateTimeline.PREV_ROTATION];
+				let r = frames[frames.length + RotateTimeline.PREV_ROTATION];
 				switch (blend) {
 				case MixBlend.setup:
 					bone.rotation = bone.data.rotation + r * alpha;
@@ -255,7 +255,7 @@ module spine {
 			let percent = this.getCurvePercent((frame >> 1) - 1,
 				1 - (time - frameTime) / (frames[frame + RotateTimeline.PREV_TIME] - frameTime));
 
-			r = frames[frame + RotateTimeline.ROTATION] - prevRotation;
+			let r = frames[frame + RotateTimeline.ROTATION] - prevRotation;
 			r = prevRotation + (r - (16384 - ((16384.499999999996 - r / 360) | 0)) * 360) * percent;
 			switch (blend) {
 			case MixBlend.setup:
@@ -299,6 +299,7 @@ module spine {
 			let frames = this.frames;
 
 			let bone = skeleton.bones[this.boneIndex];
+			if (!bone.active) return;
 			if (time < frames[0]) {
 				switch (blend) {
 				case MixBlend.setup:
@@ -358,6 +359,7 @@ module spine {
 			let frames = this.frames;
 
 			let bone = skeleton.bones[this.boneIndex];
+			if (!bone.active) return;
 			if (time < frames[0]) {
 				switch (blend) {
 				case MixBlend.setup:
@@ -397,7 +399,7 @@ module spine {
 				}
 			} else {
 				let bx = 0, by = 0;
-				if (direction == MixDirection.out) {
+				if (direction == MixDirection.mixOut) {
 					switch (blend) {
 					case MixBlend.setup:
 						bx = bone.data.scaleX;
@@ -457,6 +459,7 @@ module spine {
 			let frames = this.frames;
 
 			let bone = skeleton.bones[this.boneIndex];
+			if (!bone.active) return;
 			if (time < frames[0]) {
 				switch (blend) {
 				case MixBlend.setup:
@@ -530,6 +533,7 @@ module spine {
 
 		apply (skeleton: Skeleton, lastTime: number, time: number, events: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let slot = skeleton.slots[this.slotIndex];
+			if (!slot.bone.active) return;
 			let frames = this.frames;
 			if (time < frames[0]) {
 				switch (blend) {
@@ -600,6 +604,7 @@ module spine {
 
 		apply (skeleton: Skeleton, lastTime: number, time: number, events: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let slot = skeleton.slots[this.slotIndex];
+			if (!slot.bone.active) return;
 			let frames = this.frames;
 			if (time < frames[0]) {
 				switch (blend) {
@@ -689,7 +694,8 @@ module spine {
 
 		apply (skeleton: Skeleton, lastTime: number, time: number, events: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let slot = skeleton.slots[this.slotIndex];
-			if (direction == MixDirection.out && blend == MixBlend.setup) {
+			if (!slot.bone.active) return;
+			if (direction == MixDirection.mixOut && blend == MixBlend.setup) {
 				let attachmentName = slot.data.attachmentName;
 				slot.setAttachment(attachmentName == null ? null : skeleton.getAttachment(this.slotIndex, attachmentName));
 				return;
@@ -716,7 +722,7 @@ module spine {
 		}
 	}
 
-	var zeros : ArrayLike<number> = null;
+	let zeros : ArrayLike<number> = null;
 
 	/*export class DeformTimeline extends CurveTimeline {
 		slotIndex: number;
@@ -743,11 +749,12 @@ module spine {
 
 		apply (skeleton: Skeleton, lastTime: number, time: number, firedEvents: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let slot: Slot = skeleton.slots[this.slotIndex];
+			if (!slot.bone.active) return;
 			let slotAttachment: Attachment = slot.getAttachment();
-			if (!(slotAttachment instanceof VertexAttachment) || !(<VertexAttachment>slotAttachment).applyDeform(this.attachment)) return;
+			if (!(slotAttachment instanceof VertexAttachment) || !((<VertexAttachment>slotAttachment).deformAttachment == this.attachment)) return;
 
-			let verticesArray: Array<number> = slot.attachmentVertices;
-			if (verticesArray.length == 0) blend = MixBlend.setup;
+			let deformArray: Array<number> = slot.deform;
+			if (deformArray.length == 0) blend = MixBlend.setup;
 
 			let frameVertices = this.frameVertices;
 			let vertexCount = frameVertices[0].length;
@@ -757,30 +764,30 @@ module spine {
 				let vertexAttachment = <VertexAttachment>slotAttachment;
 				switch (blend) {
 				case MixBlend.setup:
-					verticesArray.length = 0;
+					deformArray.length = 0;
 					return;
 				case MixBlend.first:
 					if (alpha == 1) {
-						verticesArray.length = 0;
+						deformArray.length = 0;
 						break;
 					}
-					let vertices: Array<number> = Utils.setArraySize(verticesArray, vertexCount);
+					let deform: Array<number> = Utils.setArraySize(deformArray, vertexCount);
 					if (vertexAttachment.bones == null) {
 						// Unweighted vertex positions.
-						var setupVertices = vertexAttachment.vertices;
+						let setupVertices = vertexAttachment.vertices;
 						for (var i = 0; i < vertexCount; i++)
-							vertices[i] += (setupVertices[i] - vertices[i]) * alpha;
+							deform[i] += (setupVertices[i] - deform[i]) * alpha;
 					} else {
 						// Weighted deform offsets.
 						alpha = 1 - alpha;
 						for (var i = 0; i < vertexCount; i++)
-							vertices[i] *= alpha;
+							deform[i] *= alpha;
 					}
 				}
 				return;
 			}
 
-			let vertices: Array<number> = Utils.setArraySize(verticesArray, vertexCount);
+			let deform: Array<number> = Utils.setArraySize(deformArray, vertexCount);
 			if (time >= frames[frames.length - 1]) { // Time is after last frame.
 				let lastVertices = frameVertices[frames.length - 1];
 				if (alpha == 1) {
@@ -790,15 +797,15 @@ module spine {
 							// Unweighted vertex positions, with alpha.
 							let setupVertices = vertexAttachment.vertices;
 							for (let i = 0; i < vertexCount; i++) {
-								vertices[i] += lastVertices[i] - setupVertices[i];
+								deform[i] += lastVertices[i] - setupVertices[i];
 							}
 						} else {
 							// Weighted deform offsets, with alpha.
 							for (let i = 0; i < vertexCount; i++)
-								vertices[i] += lastVertices[i];
+								deform[i] += lastVertices[i];
 						}
 					} else {
-						Utils.arrayCopy(lastVertices, 0, vertices, 0, vertexCount);
+						Utils.arrayCopy(lastVertices, 0, deform, 0, vertexCount);
 					}
 				} else {
 					switch (blend) {
@@ -809,31 +816,31 @@ module spine {
 							let setupVertices = vertexAttachment.vertices;
 							for (let i = 0; i < vertexCount; i++) {
 								let setup = setupVertices[i];
-								vertices[i] = setup + (lastVertices[i] - setup) * alpha;
+								deform[i] = setup + (lastVertices[i] - setup) * alpha;
 							}
 						} else {
 							// Weighted deform offsets, with alpha.
 							for (let i = 0; i < vertexCount; i++)
-								vertices[i] = lastVertices[i] * alpha;
+								deform[i] = lastVertices[i] * alpha;
 						}
 						break;
 					}
 					case MixBlend.first:
 					case MixBlend.replace:
 						for (let i = 0; i < vertexCount; i++)
-							vertices[i] += (lastVertices[i] - vertices[i]) * alpha;
+							deform[i] += (lastVertices[i] - deform[i]) * alpha;
 					case MixBlend.add:
 						let vertexAttachment = slotAttachment as VertexAttachment;
 						if (vertexAttachment.bones == null) {
 							// Unweighted vertex positions, with alpha.
 							let setupVertices = vertexAttachment.vertices;
 							for (let i = 0; i < vertexCount; i++) {
-								vertices[i] += (lastVertices[i] - setupVertices[i]) * alpha;
+								deform[i] += (lastVertices[i] - setupVertices[i]) * alpha;
 							}
 						} else {
 							// Weighted deform offsets, with alpha.
 							for (let i = 0; i < vertexCount; i++)
-								vertices[i] += lastVertices[i] * alpha;
+								deform[i] += lastVertices[i] * alpha;
 						}
 					}
 				}
@@ -855,19 +862,19 @@ module spine {
 						let setupVertices = vertexAttachment.vertices;
 						for (let i = 0; i < vertexCount; i++) {
 							let prev = prevVertices[i];
-							vertices[i] += prev + (nextVertices[i] - prev) * percent - setupVertices[i];
+							deform[i] += prev + (nextVertices[i] - prev) * percent - setupVertices[i];
 						}
 					} else {
 						// Weighted deform offsets, with alpha.
 						for (let i = 0; i < vertexCount; i++) {
 							let prev = prevVertices[i];
-							vertices[i] += prev + (nextVertices[i] - prev) * percent;
+							deform[i] += prev + (nextVertices[i] - prev) * percent;
 						}
 					}
 				} else {
 					for (let i = 0; i < vertexCount; i++) {
 						let prev = prevVertices[i];
-						vertices[i] = prev + (nextVertices[i] - prev) * percent;
+						deform[i] = prev + (nextVertices[i] - prev) * percent;
 					}
 				}
 			} else {
@@ -879,13 +886,13 @@ module spine {
 						let setupVertices = vertexAttachment.vertices;
 						for (let i = 0; i < vertexCount; i++) {
 							let prev = prevVertices[i], setup = setupVertices[i];
-							vertices[i] = setup + (prev + (nextVertices[i] - prev) * percent - setup) * alpha;
+							deform[i] = setup + (prev + (nextVertices[i] - prev) * percent - setup) * alpha;
 						}
 					} else {
 						// Weighted deform offsets, with alpha.
 						for (let i = 0; i < vertexCount; i++) {
 							let prev = prevVertices[i];
-							vertices[i] = (prev + (nextVertices[i] - prev) * percent) * alpha;
+							deform[i] = (prev + (nextVertices[i] - prev) * percent) * alpha;
 						}
 					}
 					break;
@@ -894,7 +901,7 @@ module spine {
 				case MixBlend.replace:
 					for (let i = 0; i < vertexCount; i++) {
 						let prev = prevVertices[i];
-						vertices[i] += (prev + (nextVertices[i] - prev) * percent - vertices[i]) * alpha;
+						deform[i] += (prev + (nextVertices[i] - prev) * percent - deform[i]) * alpha;
 					}
 					break;
 				case MixBlend.add:
@@ -904,13 +911,13 @@ module spine {
 						let setupVertices = vertexAttachment.vertices;
 						for (let i = 0; i < vertexCount; i++) {
 							let prev = prevVertices[i];
-							vertices[i] += (prev + (nextVertices[i] - prev) * percent - setupVertices[i]) * alpha;
+							deform[i] += (prev + (nextVertices[i] - prev) * percent - setupVertices[i]) * alpha;
 						}
 					} else {
 						// Weighted deform offsets, with alpha.
 						for (let i = 0; i < vertexCount; i++) {
 							let prev = prevVertices[i];
-							vertices[i] += (prev + (nextVertices[i] - prev) * percent) * alpha;
+							deform[i] += (prev + (nextVertices[i] - prev) * percent) * alpha;
 						}
 					}
 				}
@@ -997,7 +1004,7 @@ module spine {
 		apply (skeleton: Skeleton, lastTime: number, time: number, firedEvents: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let drawOrder: Array<Slot> = skeleton.drawOrder;
 			let slots: Array<Slot> = skeleton.slots;
-			if (direction == MixDirection.out && blend == MixBlend.setup) {
+			if (direction == MixDirection.mixOut && blend == MixBlend.setup) {
 				Utils.arrayCopy(skeleton.slots, 0, skeleton.drawOrder, 0, skeleton.slots.length);
 				return;
 			}
@@ -1025,12 +1032,12 @@ module spine {
 	}
 
 	export class IkConstraintTimeline extends CurveTimeline {
-		static ENTRIES = 5;
-		static PREV_TIME = -5; static PREV_MIX = -4; static PREV_BEND_DIRECTION = -3; static PREV_COMPRESS = -2; static PREV_STRETCH = -1;
-		static MIX = 1; static BEND_DIRECTION = 2; static COMPRESS = 3; static STRETCH = 4;
+		static ENTRIES = 6;
+		static PREV_TIME = -6; static PREV_MIX = -5; static PREV_SOFTNESS = -4; static PREV_BEND_DIRECTION = -3; static PREV_COMPRESS = -2; static PREV_STRETCH = -1;
+		static MIX = 1; static SOFTNESS = 2; static BEND_DIRECTION = 3; static COMPRESS = 4; static STRETCH = 5;
 
 		ikConstraintIndex: number;
-		frames: ArrayLike<number>; // time, mix, bendDirection, compress, stretch, ...
+		frames: ArrayLike<number>; // time, mix, softness, bendDirection, compress, stretch, ...
 
 		constructor (frameCount: number) {
 			super(frameCount);
@@ -1041,11 +1048,12 @@ module spine {
 			return (TimelineType.ikConstraint << 24) + this.ikConstraintIndex;
 		}
 
-		// Sets the time, mix and bend direction of the specified keyframe.
-		setFrame (frameIndex: number, time: number, mix: number, bendDirection: number, compress: boolean, stretch: boolean) {
+		/** Sets the time, mix, softness, and bend direction of the specified keyframe. */
+		setFrame (frameIndex: number, time: number, mix: number, softness: number, bendDirection: number, compress: boolean, stretch: boolean) {
 			frameIndex *= IkConstraintTimeline.ENTRIES;
 			this.frames[frameIndex] = time;
 			this.frames[frameIndex + IkConstraintTimeline.MIX] = mix;
+			this.frames[frameIndex + IkConstraintTimeline.SOFTNESS] = softness;
 			this.frames[frameIndex + IkConstraintTimeline.BEND_DIRECTION] = bendDirection;
 			this.frames[frameIndex + IkConstraintTimeline.COMPRESS] = compress ? 1 : 0;
 			this.frames[frameIndex + IkConstraintTimeline.STRETCH] = stretch ? 1 : 0;
@@ -1054,16 +1062,19 @@ module spine {
 		apply (skeleton: Skeleton, lastTime: number, time: number, firedEvents: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let frames = this.frames;
 			let constraint: IkConstraint = skeleton.ikConstraints[this.ikConstraintIndex];
+			if (!constraint.active) return;
 			if (time < frames[0]) {
 				switch (blend) {
 				case MixBlend.setup:
 					constraint.mix = constraint.data.mix;
+					constraint.softness = constraint.data.softness;
 					constraint.bendDirection = constraint.data.bendDirection;
 					constraint.compress = constraint.data.compress;
 					constraint.stretch = constraint.data.stretch;
 					return;
 				case MixBlend.first:
 					constraint.mix += (constraint.data.mix - constraint.mix) * alpha;
+					constraint.softness += (constraint.data.softness - constraint.softness) * alpha;
 					constraint.bendDirection = constraint.data.bendDirection;
 					constraint.compress = constraint.data.compress;
 					constraint.stretch = constraint.data.stretch;
@@ -1074,7 +1085,9 @@ module spine {
 			if (time >= frames[frames.length - IkConstraintTimeline.ENTRIES]) { // Time is after last frame.
 				if (blend == MixBlend.setup) {
 					constraint.mix = constraint.data.mix + (frames[frames.length + IkConstraintTimeline.PREV_MIX] - constraint.data.mix) * alpha;
-					if (direction == MixDirection.out) {
+					constraint.softness = constraint.data.softness
+						+ (frames[frames.length + IkConstraintTimeline.PREV_SOFTNESS] - constraint.data.softness) * alpha;
+					if (direction == MixDirection.mixOut) {
 						constraint.bendDirection = constraint.data.bendDirection;
 						constraint.compress = constraint.data.compress;
 						constraint.stretch = constraint.data.stretch;
@@ -1085,7 +1098,8 @@ module spine {
 					}
 				} else {
 					constraint.mix += (frames[frames.length + IkConstraintTimeline.PREV_MIX] - constraint.mix) * alpha;
-					if (direction == MixDirection.in) {
+					constraint.softness += (frames[frames.length + IkConstraintTimeline.PREV_SOFTNESS] - constraint.softness) * alpha;
+					if (direction == MixDirection.mixIn) {
 						constraint.bendDirection = frames[frames.length + IkConstraintTimeline.PREV_BEND_DIRECTION];
 						constraint.compress = frames[frames.length + IkConstraintTimeline.PREV_COMPRESS] != 0;
 						constraint.stretch = frames[frames.length + IkConstraintTimeline.PREV_STRETCH] != 0;
@@ -1097,13 +1111,16 @@ module spine {
 			// Interpolate between the previous frame and the current frame.
 			let frame = Animation.binarySearch(frames, time, IkConstraintTimeline.ENTRIES);
 			let mix = frames[frame + IkConstraintTimeline.PREV_MIX];
+			let softness = frames[frame + IkConstraintTimeline.PREV_SOFTNESS];
 			let frameTime = frames[frame];
 			let percent = this.getCurvePercent(frame / IkConstraintTimeline.ENTRIES - 1,
 				1 - (time - frameTime) / (frames[frame + IkConstraintTimeline.PREV_TIME] - frameTime));
 
 			if (blend == MixBlend.setup) {
 				constraint.mix = constraint.data.mix + (mix + (frames[frame + IkConstraintTimeline.MIX] - mix) * percent - constraint.data.mix) * alpha;
-				if (direction == MixDirection.out) {
+				constraint.softness = constraint.data.softness
+					+ (softness + (frames[frame + IkConstraintTimeline.SOFTNESS] - softness) * percent - constraint.data.softness) * alpha;
+				if (direction == MixDirection.mixOut) {
 					constraint.bendDirection = constraint.data.bendDirection;
 					constraint.compress = constraint.data.compress;
 					constraint.stretch = constraint.data.stretch;
@@ -1114,7 +1131,8 @@ module spine {
 				}
 			} else {
 				constraint.mix += (mix + (frames[frame + IkConstraintTimeline.MIX] - mix) * percent - constraint.mix) * alpha;
-				if (direction == MixDirection.in) {
+				constraint.softness += (softness + (frames[frame + IkConstraintTimeline.SOFTNESS] - softness) * percent - constraint.softness) * alpha;
+				if (direction == MixDirection.mixIn) {
 					constraint.bendDirection = frames[frame + IkConstraintTimeline.PREV_BEND_DIRECTION];
 					constraint.compress = frames[frame + IkConstraintTimeline.PREV_COMPRESS] != 0;
 					constraint.stretch = frames[frame + IkConstraintTimeline.PREV_STRETCH] != 0;
@@ -1154,6 +1172,7 @@ module spine {
 			let frames = this.frames;
 
 			let constraint: TransformConstraint = skeleton.transformConstraints[this.transformConstraintIndex];
+			if (!constraint.active) return;
 			if (time < frames[0]) {
 				let data = constraint.data;
 				switch (blend) {
@@ -1238,6 +1257,7 @@ module spine {
 		apply (skeleton: Skeleton, lastTime: number, time: number, firedEvents: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let frames = this.frames;
 			let constraint: PathConstraint = skeleton.pathConstraints[this.pathConstraintIndex];
+			if (!constraint.active) return;
 			if (time < frames[0]) {
 				switch (blend) {
 				case MixBlend.setup:
@@ -1281,6 +1301,7 @@ module spine {
 		apply (skeleton: Skeleton, lastTime: number, time: number, firedEvents: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let frames = this.frames;
 			let constraint: PathConstraint = skeleton.pathConstraints[this.pathConstraintIndex];
+			if (!constraint.active) return;
 			if (time < frames[0]) {
 				switch (blend) {
 				case MixBlend.setup:
@@ -1342,7 +1363,7 @@ module spine {
 		apply (skeleton: Skeleton, lastTime: number, time: number, firedEvents: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection) {
 			let frames = this.frames;
 			let constraint: PathConstraint = skeleton.pathConstraints[this.pathConstraintIndex];
-
+			if (!constraint.active) return;
 			if (time < frames[0]) {
 				switch (blend) {
 				case MixBlend.setup:

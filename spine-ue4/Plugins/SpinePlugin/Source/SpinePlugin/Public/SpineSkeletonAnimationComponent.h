@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #pragma once
@@ -81,7 +80,7 @@ public:
 	
 	UTrackEntry () { }		
 
-	void SetTrackEntry (spine::TrackEntry* entry);
+	void SetTrackEntry (spine::TrackEntry* trackEntry);
 	spine::TrackEntry* GetTrackEntry() { return entry; }
 	
 	UFUNCTION(BlueprintCallable, Category="Components|Spine|TrackEntry")
@@ -90,7 +89,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components|Spine|TrackEntry")
 	bool GetLoop () { return entry ? entry->getLoop() : false; }
 	UFUNCTION(BlueprintCallable, Category="Components|Spine|TrackEntry")
-		void SetLoop(bool loop) { if (entry) entry->setLoop(loop); }
+	void SetLoop(bool loop) { if (entry) entry->setLoop(loop); }
 	
 	UFUNCTION(BlueprintCallable, Category="Components|Spine|TrackEntry")
 	float GetEventThreshold () { return entry ? entry->getEventThreshold() : 0; }
@@ -157,6 +156,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components|Spine|TrackEntry")
 	void SetMixDuration(float mixDuration) { if (entry) entry->setMixDuration(mixDuration); }
 
+	UFUNCTION(BlueprintCallable, Category = "Components|Spine|TrackEntry")
+	FString getAnimationName() { return entry ? entry->getAnimation()->getName().buffer() : ""; }
+
+	UFUNCTION(BlueprintCallable, Category = "Components|Spine|TrackEntry")
+	float getAnimationDuration() { return entry ? entry->getAnimation()->getDuration(): 0; }
+
+	UFUNCTION(BlueprintCallable, Category = "Components|Spine|TrackEntry")
+	float isValidAnimation() { return entry != nullptr; }
+
 	UPROPERTY(BlueprintAssignable, Category = "Components|Spine|TrackEntry")
 	FSpineAnimationStartDelegate AnimationStart;
 
@@ -194,6 +202,16 @@ public:
 	virtual void TickComponent (float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	virtual void FinishDestroy () override;
+
+	//Added functions for manual configuration
+
+	/* Manages if this skeleton should update automatically or is paused. */
+	UFUNCTION(BlueprintCallable, Category="Components|Spine|Animation")
+	void SetAutoPlay(bool bInAutoPlays);
+
+	/* Directly set the time of the current animation, will clamp to animation range. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Spine|Animation")
+	void SetPlaybackTime(float InPlaybackTime, bool bCallDelegates = true);
 	
 	// Blueprint functions
 	UFUNCTION(BlueprintCallable, Category="Components|Spine|Animation")
@@ -240,13 +258,19 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category="Components|Spine|Animation")
 	FSpineAnimationDisposeDelegate AnimationDispose;
+
+	UPROPERTY(EditAnywhere, Category=Spine)
+	FString PreviewAnimation;
+
+	UPROPERTY(EditAnywhere, Category=Spine)
+	FString PreviewSkin;
 	
 	// used in C event callback. Needs to be public as we can't call
 	// protected methods from plain old C function.
 	void GCTrackEntry(UTrackEntry* entry) { trackEntries.Remove(entry); }
 protected:
 	virtual void CheckState () override;
-	virtual void InternalTick(float DeltaTime, bool CallDelegates = true) override;
+	virtual void InternalTick(float DeltaTime, bool CallDelegates = true, bool Preview = false) override;
 	virtual void DisposeState () override;
 	
 	spine::AnimationState* state;
@@ -255,4 +279,12 @@ protected:
 	// in transit within a blueprint
 	UPROPERTY()
 	TSet<UTrackEntry*> trackEntries;
+
+private:
+	/* If the animation should update automatically. */
+	UPROPERTY()
+	bool bAutoPlaying;
+
+	FString lastPreviewAnimation;
+	FString lastPreviewSkin;
 };

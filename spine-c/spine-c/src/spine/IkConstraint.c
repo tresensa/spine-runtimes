@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #include <spine/IkConstraint.h>
@@ -42,6 +41,7 @@ spIkConstraint *spIkConstraint_create(spIkConstraintData *data, const spSkeleton
 	self->compress = data->compress;
 	self->stretch = data->stretch;
 	self->mix = data->mix;
+	self->softness = data->softness;
 
 	self->bonesCount = self->data->bonesCount;
 	self->bones = MALLOC(spBone*, self->bonesCount);
@@ -63,7 +63,7 @@ void spIkConstraint_apply(spIkConstraint *self) {
 			spIkConstraint_apply1(self->bones[0], self->target->worldX, self->target->worldY, self->compress, self->stretch, self->data->uniform, self->mix);
 			break;
 		case 2:
-			spIkConstraint_apply2(self->bones[0], self->bones[1], self->target->worldX, self->target->worldY, self->bendDirection, self->stretch, self->mix);
+			spIkConstraint_apply2(self->bones[0], self->bones[1], self->target->worldX, self->target->worldY, self->bendDirection, self->stretch, self->softness, self->mix);
 			break;
 	}
 }
@@ -83,7 +83,7 @@ void spIkConstraint_apply1 (spBone* bone, float targetX, float targetY, int /*bo
 	sy = bone->ascaleY;
 	if (compress || stretch) {
 		float b = bone->data->length * sx, dd = SQRT(tx * tx + ty * ty);
-		if ((compress && dd < b) || (stretch && dd > b) && (b > 0.0001f)) {
+		if ((compress && dd < b) || ((stretch && dd > b) && (b > 0.0001f))) {
 			s = (dd / b - 1) * alpha + 1;
 			sx *= s;
 			if (uniform) sy *= s;
@@ -93,13 +93,15 @@ void spIkConstraint_apply1 (spBone* bone, float targetX, float targetY, int /*bo
 		sy, bone->ashearX, bone->ashearY);
 }
 
-void spIkConstraint_apply2 (spBone* parent, spBone* child, float targetX, float targetY, int bendDir, int /*boolean*/ stretch, float alpha) {
+void spIkConstraint_apply2 (spBone* parent, spBone* child, float targetX, float targetY, int bendDir, int /*boolean*/ stretch, float softness, float alpha) {
+	float a, b, c, d;
 	float px, py, psx, sx, psy;
 	float cx, cy, csx, cwx, cwy;
 	int o1, o2, s2, u;
 	spBone* pp = parent->parent;
-	float tx, ty, dd, dx, dy, l1, l2, a1, a2, r;
+	float tx, ty, dd, dx, dy, l1, l2, a1, a2, r, td, sd, p;
 	float id, x, y;
+	float aa, bb, ll, ta, c0, c1, c2;
 	if (alpha == 0) {
 		spBone_updateWorldTransform(child);
 		return;
@@ -136,36 +138,57 @@ void spIkConstraint_apply2 (spBone* parent, spBone* child, float targetX, float 
 		cwx = parent->a * cx + parent->b * cy + parent->worldX;
 		cwy = parent->c * cx + parent->d * cy + parent->worldY;
 	}
-	id = 1 / (pp->a * pp->d - pp->b * pp->c);
-	x = targetX - pp->worldX;
-	y = targetY - pp->worldY;
-	tx = (x * pp->d - y * pp->b) * id - px;
-	ty = (y * pp->a - x * pp->c) * id - py;
-	dd = tx * tx + ty * ty;
+	a = pp->a;
+	b = pp->b;
+	c = pp->c;
+	d = pp->d;
+	id = 1 / (a * d - b * c);
 	x = cwx - pp->worldX;
 	y = cwy - pp->worldY;
-	dx = (x * pp->d - y * pp->b) * id - px;
-	dy = (y * pp->a - x * pp->c) * id - py;
+	dx = (x * d - y * b) * id - px;
+	dy = (y * a - x * c) * id - py;
 	l1 = SQRT(dx * dx + dy * dy);
 	l2 = child->data->length * csx;
+	if (l1 < 0.0001) {
+		spIkConstraint_apply1(parent, targetX, targetY, 0, stretch, 0, alpha);
+		spBone_updateWorldTransformWith(child, cx, cy, 0, child->ascaleX, child->ascaleY, child->ashearX, child->ashearY);
+		return;
+	}
+	x = targetX - pp->worldX;
+	y = targetY - pp->worldY;
+	tx = (x * d - y * b) * id - px;
+	ty = (y * a - x * c) * id - py;
+	dd = tx * tx + ty * ty;
+	if (softness != 0) {
+		softness *= psx * (csx + 1) / 2;
+		td = SQRT(dd);
+		sd = td - l1 - l2 * psx + softness;
+		if (sd > 0) {
+			p = MIN(1, sd / (softness * 2)) - 1;
+			p = (sd - softness * (1 - p * p)) / td;
+			tx -= p * tx;
+			ty -= p * ty;
+			dd = tx * tx + ty * ty;
+		}
+	}
 	if (u) {
-		float cosine, a, b;
+		float cosine;
 		l2 *= psx;
 		cosine = (dd - l1 * l1 - l2 * l2) / (2 * l1 * l2);
 		if (cosine < -1) cosine = -1;
 		else if (cosine > 1) {
 			cosine = 1;
-			if (stretch && l1 + l2 > 0.0001f) sx *= (SQRT(dd) / (l1 + l2) - 1) * alpha + 1;
+			if (stretch) sx *= (SQRT(dd) / (l1 + l2) - 1) * alpha + 1;
 		}
 		a2 = ACOS(cosine) * bendDir;
 		a = l1 + l2 * cosine;
 		b = l2 * SIN(a2);
 		a1 = ATAN2(ty * a - tx * b, tx * a + ty * b);
 	} else {
-		float a = psx * l2, b = psy * l2;
-		float aa = a * a, bb = b * b, ll = l1 * l1, ta = ATAN2(ty, tx);
-		float c0 = bb * ll + aa * dd - aa * bb, c1 = -2 * bb * l1, c2 = bb - aa;
-		float d = c1 * c1 - 4 * c2 * c0;
+		a = psx * l2; b = psy * l2;
+		aa = a * a, bb = b * b, ll = l1 * l1, ta = ATAN2(ty, tx);
+		c0 = bb * ll + aa * dd - aa * bb, c1 = -2 * bb * l1, c2 = bb - aa;
+		d = c1 * c1 - 4 * c2 * c0;
 		if (d >= 0) {
 			float q = SQRT(d), r0, r1;
 			if (c1 < 0) q = -q;

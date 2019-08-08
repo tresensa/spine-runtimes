@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 module spine {
@@ -48,6 +47,8 @@ module spine {
 			if (skeletonMap != null) {
 				skeletonData.hash = skeletonMap.hash;
 				skeletonData.version = skeletonMap.spine;
+				skeletonData.x = skeletonMap.x;
+				skeletonData.y = skeletonMap.y;
 				skeletonData.width = skeletonMap.width;
 				skeletonData.height = skeletonMap.height;
 				skeletonData.fps = skeletonMap.fps;
@@ -75,6 +76,7 @@ module spine {
 					data.shearX = this.getValue(boneMap, "shearX", 0);
 					data.shearY = this.getValue(boneMap, "shearY", 0);
 					data.transformMode = SkeletonJson.transformModeFromString(this.getValue(boneMap, "transform", "normal"));
+					data.skinRequired = this.getValue(boneMap, "skin", false);
 
 					skeletonData.bones.push(data);
 				}
@@ -111,6 +113,7 @@ module spine {
 					let constraintMap = root.ik[i];
 					let data = new IkConstraintData(constraintMap.name);
 					data.order = this.getValue(constraintMap, "order", 0);
+					data.skinRequired = this.getValue(constraintMap, "skin", false);
 
 					for (let j = 0; j < constraintMap.bones.length; j++) {
 						let boneName = constraintMap.bones[j];
@@ -124,6 +127,7 @@ module spine {
 					if (data.target == null) throw new Error("IK target bone not found: " + targetName);
 
 					data.mix = this.getValue(constraintMap, "mix", 1);
+					data.softness = this.getValue(constraintMap, "softness", 0) * scale;
 					data.bendDirection = this.getValue(constraintMap, "bendPositive", true) ? 1 : -1;
 					data.compress = this.getValue(constraintMap, "compress", false);
 					data.stretch = this.getValue(constraintMap, "stretch", false);
@@ -139,6 +143,7 @@ module spine {
 					let constraintMap = root.transform[i];
 					let data = new TransformConstraintData(constraintMap.name);
 					data.order = this.getValue(constraintMap, "order", 0);
+					data.skinRequired = this.getValue(constraintMap, "skin", false);
 
 					for (let j = 0; j < constraintMap.bones.length; j++) {
 						let boneName = constraintMap.bones[j];
@@ -175,6 +180,7 @@ module spine {
 					let constraintMap = root.path[i];
 					let data = new PathConstraintData(constraintMap.name);
 					data.order = this.getValue(constraintMap, "order", 0);
+					data.skinRequired = this.getValue(constraintMap, "skin", false);
 
 					for (let j = 0; j < constraintMap.bones.length; j++) {
 						let boneName = constraintMap.bones[j];
@@ -204,16 +210,49 @@ module spine {
 
 			// Skins.
 			if (root.skins) {
-				for (let skinName in root.skins) {
-					let skinMap = root.skins[skinName]
-					let skin = new Skin(skinName);
-					for (let slotName in skinMap) {
-						let slotIndex = skeletonData.findSlotIndex(slotName);
-						if (slotIndex == -1) throw new Error("Slot not found: " + slotName);
-						let slotMap = skinMap[slotName];
+				for (let i = 0; i < root.skins.length; i++) {
+					let skinMap = root.skins[i]
+					let skin = new Skin(skinMap.name);
+
+					if (skinMap.bones) {
+						for (let ii = 0; ii < skinMap.bones.length; ii++) {
+							let bone = skeletonData.findBone(skinMap.bones[ii]);
+							if (bone == null) throw new Error("Skin bone not found: " + skinMap.bones[i]);
+							skin.bones.push(bone);
+						}
+					}
+
+					if (skinMap.ik) {
+						for (let ii = 0; ii < skinMap.ik.length; ii++) {
+							let constraint = skeletonData.findIkConstraint(skinMap.ik[ii]);
+							if (constraint == null) throw new Error("Skin IK constraint not found: " + skinMap.ik[i]);
+							skin.constraints.push(constraint);
+						}
+					}
+
+					if (skinMap.transform) {
+						for (let ii = 0; ii < skinMap.transform.length; ii++) {
+							let constraint = skeletonData.findTransformConstraint(skinMap.transform[ii]);
+							if (constraint == null) throw new Error("Skin transform constraint not found: " + skinMap.transform[i]);
+							skin.constraints.push(constraint);
+						}
+					}
+
+					if (skinMap.path) {
+						for (let ii = 0; ii < skinMap.path.length; ii++) {
+							let constraint = skeletonData.findPathConstraint(skinMap.path[ii]);
+							if (constraint == null) throw new Error("Skin path constraint not found: " + skinMap.path[i]);
+							skin.constraints.push(constraint);
+						}
+					}
+
+					for (let slotName in skinMap.attachments) {
+						let slot = skeletonData.findSlot(slotName);
+						if (slot == null) throw new Error("Slot not found: " + slotName);
+						let slotMap = skinMap.attachments[slotName];
 						for (let entryName in slotMap) {
-							let attachment = this.readAttachment(slotMap[entryName], skin, slotIndex, entryName, skeletonData, uid);
-							if (attachment != null) skin.addAttachment(slotIndex, entryName, attachment);
+							let attachment = this.readAttachment(slotMap[entryName], skin, slot.index, entryName, skeletonData, uid);
+							if (attachment != null) skin.setAttachment(slot.index, entryName, attachment);
 						}
 					}
 					skeletonData.skins.push(skin);
@@ -228,6 +267,7 @@ module spine {
 				if (skin == null) throw new Error("Skin not found: " + linkedMesh.skin);
 				let parent = skin.getAttachment(linkedMesh.slotIndex, linkedMesh.parent);
 				if (parent == null) throw new Error("Parent mesh not found: " + linkedMesh.parent);
+				linkedMesh.mesh.deformAttachment = linkedMesh.inheritDeform ? <VertexAttachment>parent : <VertexAttachment>linkedMesh.mesh;
 				linkedMesh.mesh.setParentMesh(<MeshAttachment> parent);
 				linkedMesh.mesh.updateUVs();
 			}
@@ -305,10 +345,12 @@ module spine {
 					let color = this.getValue(map, "color", null);
 					if (color != null) mesh.color.setFromString(color);
 
+					mesh.width = this.getValue(map, "width", 0) * scale;
+					mesh.height = this.getValue(map, "height", 0) * scale;
+
 					let parent: string = this.getValue(map, "parent", null);
 					if (parent != null) {
-						mesh.inheritDeform = this.getValue(map, "deform", true);
-						this.linkedMeshes.push(new LinkedMesh(mesh, <string> this.getValue(map, "skin", null), slotIndex, parent));
+						this.linkedMeshes.push(new LinkedMesh(mesh, <string> this.getValue(map, "skin", null), slotIndex, parent, this.getValue(map, "deform", true)));
 						return mesh;
 					}
 
@@ -318,6 +360,7 @@ module spine {
 					mesh.regionUVs = uvs;
 					mesh.updateUVs();
 
+					mesh.edges = this.getValue(map, "edges", null);
 					mesh.hullLength = this.getValue(map, "hull", 0) * 2;
 					return mesh;
 				}*/
@@ -421,7 +464,7 @@ module spine {
 							let frameIndex = 0;
 							for (let i = 0; i < timelineMap.length; i++) {
 								let valueMap = timelineMap[i];
-								timeline.setFrame(frameIndex++, valueMap.time, valueMap.name);
+								timeline.setFrame(frameIndex++, this.getValue(valueMap, "time", 0), valueMap.name);
 							}
 							timelines.push(timeline);
 							duration = Math.max(duration, timeline.frames[timeline.getFrameCount() - 1]);
@@ -434,7 +477,7 @@ module spine {
 								let valueMap = timelineMap[i];
 								let color = new Alpha();
 								color.setFromString(valueMap.color);
-								timeline.setFrame(frameIndex, valueMap.time, color.a);
+								timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), color.a);
 								this.readCurve(valueMap, timeline, frameIndex);
 								frameIndex++;
 							}
@@ -452,7 +495,7 @@ module spine {
 								let dark = new Color();
 								light.setFromString(valueMap.light);
 								dark.setFromString(valueMap.dark);
-								timeline.setFrame(frameIndex, valueMap.time, light.r, light.g, light.b, light.a, dark.r, dark.g, dark.b);
+								timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), light.r, light.g, light.b, light.a, dark.r, dark.g, dark.b);
 								this.readCurve(valueMap, timeline, frameIndex);
 								frameIndex++;
 							}
@@ -480,7 +523,7 @@ module spine {
 							let frameIndex = 0;
 							for (let i = 0; i < timelineMap.length; i++) {
 								let valueMap = timelineMap[i];
-								timeline.setFrame(frameIndex, valueMap.time, valueMap.angle);
+								timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), this.getValue(valueMap, "angle", 0));
 								this.readCurve(valueMap, timeline, frameIndex);
 								frameIndex++;
 							}
@@ -489,10 +532,11 @@ module spine {
 
 						} else if (timelineName === "translate" || timelineName === "scale" || timelineName === "shear") {
 							let timeline: TranslateTimeline = null;
-							let timelineScale = 1;
-							if (timelineName === "scale")
+							let timelineScale = 1, defaultValue = 0;
+							if (timelineName === "scale") {
 								timeline = new ScaleTimeline(timelineMap.length);
-							else if (timelineName === "shear")
+								defaultValue = 1;
+							} else if (timelineName === "shear")
 								timeline = new ShearTimeline(timelineMap.length);
 							else {
 								timeline = new TranslateTimeline(timelineMap.length);
@@ -503,8 +547,8 @@ module spine {
 							let frameIndex = 0;
 							for (let i = 0; i < timelineMap.length; i++) {
 								let valueMap = timelineMap[i];
-								let x = this.getValue(valueMap, "x", 0), y = this.getValue(valueMap, "y", 0);
-								timeline.setFrame(frameIndex, valueMap.time, x * timelineScale, y * timelineScale);
+								let x = this.getValue(valueMap, "x", defaultValue), y = this.getValue(valueMap, "y", defaultValue);
+								timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), x * timelineScale, y * timelineScale);
 								this.readCurve(valueMap, timeline, frameIndex);
 								frameIndex++;
 							}
@@ -527,7 +571,7 @@ module spine {
 					let frameIndex = 0;
 					for (let i = 0; i < constraintMap.length; i++) {
 						let valueMap = constraintMap[i];
-						timeline.setFrame(frameIndex, valueMap.time, this.getValue(valueMap, "mix", 1),
+						timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), this.getValue(valueMap, "mix", 1), this.getValue(valueMap, "softness", 0) * scale,
 							this.getValue(valueMap, "bendPositive", true) ? 1 : -1, this.getValue(valueMap, "compress", false), this.getValue(valueMap, "stretch", false));
 						this.readCurve(valueMap, timeline, frameIndex);
 						frameIndex++;
@@ -547,7 +591,7 @@ module spine {
 					let frameIndex = 0;
 					for (let i = 0; i < constraintMap.length; i++) {
 						let valueMap = constraintMap[i];
-						timeline.setFrame(frameIndex, valueMap.time, this.getValue(valueMap, "rotateMix", 1),
+						timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), this.getValue(valueMap, "rotateMix", 1),
 							this.getValue(valueMap, "translateMix", 1), this.getValue(valueMap, "scaleMix", 1), this.getValue(valueMap, "shearMix", 1));
 						this.readCurve(valueMap, timeline, frameIndex);
 						frameIndex++;
@@ -559,9 +603,9 @@ module spine {
 			}*/
 
 			// Path constraint timelines.
-			/*if (map.paths) {
-				for (let constraintName in map.paths) {
-					let constraintMap = map.paths[constraintName];
+			/*if (map.path) {
+				for (let constraintName in map.path) {
+					let constraintMap = map.path[constraintName];
 					let index = skeletonData.findPathConstraintIndex(constraintName);
 					if (index == -1) throw new Error("Path constraint not found: " + constraintName);
 					let data = skeletonData.pathConstraints[index];
@@ -581,7 +625,7 @@ module spine {
 							let frameIndex = 0;
 							for (let i = 0; i < timelineMap.length; i++) {
 								let valueMap = timelineMap[i];
-								timeline.setFrame(frameIndex, valueMap.time, this.getValue(valueMap, timelineName, 0) * timelineScale);
+								timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), this.getValue(valueMap, timelineName, 0) * timelineScale);
 								this.readCurve(valueMap, timeline, frameIndex);
 								frameIndex++;
 							}
@@ -594,7 +638,7 @@ module spine {
 							let frameIndex = 0;
 							for (let i = 0; i < timelineMap.length; i++) {
 								let valueMap = timelineMap[i];
-								timeline.setFrame(frameIndex, valueMap.time, this.getValue(valueMap, "rotateMix", 1),
+								timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), this.getValue(valueMap, "rotateMix", 1),
 									this.getValue(valueMap, "translateMix", 1));
 								this.readCurve(valueMap, timeline, frameIndex);
 								frameIndex++;
@@ -650,7 +694,7 @@ module spine {
 									}
 								}
 
-								timeline.setFrame(frameIndex, valueMap.time, deform);
+								timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), deform);
 								this.readCurve(valueMap, timeline, frameIndex);
 								frameIndex++;
 							}
@@ -693,7 +737,7 @@ module spine {
 						for (let i = slotCount - 1; i >= 0; i--)
 							if (drawOrder[i] == -1) drawOrder[i] = unchanged[--unchangedIndex];
 					}
-					timeline.setFrame(frameIndex++, drawOrderMap.time, drawOrder);
+					timeline.setFrame(frameIndex++, this.getValue(drawOrderMap, "time", 0), drawOrder);
 				}
 				timelines.push(timeline);
 				duration = Math.max(duration, timeline.frames[timeline.getFrameCount() - 1]);
@@ -707,7 +751,7 @@ module spine {
 					let eventMap = map.events[i];
 					let eventData = skeletonData.findEvent(eventMap.name);
 					if (eventData == null) throw new Error("Event not found: " + eventMap.name);
-					let event = new Event(Utils.toSinglePrecision(eventMap.time), eventData);
+					let event = new Event(Utils.toSinglePrecision(this.getValue(eventMap, "time", 0)), eventData);
 					event.intValue = this.getValue(eventMap, "int", eventData.intValue);
 					event.floatValue = this.getValue(eventMap, "float", eventData.floatValue);
 					event.stringValue = this.getValue(eventMap, "string", eventData.stringValue);
@@ -730,11 +774,11 @@ module spine {
 
 		readCurve (map: any, timeline: CurveTimeline, frameIndex: number) {
 			if (!map.curve) return;
-			if (map.curve === "stepped")
+			if (map.curve == "stepped")
 				timeline.setStepped(frameIndex);
-			else if (Object.prototype.toString.call(map.curve) === '[object Array]') {
-				let curve: Array<number> = map.curve;
-				timeline.setCurve(frameIndex, curve[0], curve[1], curve[2], curve[3]);
+			else {
+				let curve: number = map.curve;
+				timeline.setCurve(frameIndex, curve, this.getValue(map, "c2", 0), this.getValue(map, "c3", 1), this.getValue(map, "c4", 1));
 			}
 		}
 
@@ -789,12 +833,14 @@ module spine {
 		parent: string; skin: string;
 		slotIndex: number;
 		mesh: MeshAttachment;
+		inheritDeform: boolean;
 
-		constructor (mesh: MeshAttachment, skin: string, slotIndex: number, parent: string) {
+		constructor (mesh: MeshAttachment, skin: string, slotIndex: number, parent: string, inheritDeform: boolean) {
 			this.mesh = mesh;
 			this.skin = skin;
 			this.slotIndex = slotIndex;
 			this.parent = parent;
+			this.inheritDeform = inheritDeform;
 		}
 	}*/
 }

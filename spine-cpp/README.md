@@ -4,13 +4,17 @@ The spine-cpp runtime provides basic functionality to load and manipulate [spine
 
 ## Licensing
 
-This spine Runtime may only be used for personal or internal use, typically to evaluate spine before purchasing. If you would like to incorporate a spine Runtime into your applications, distribute software containing a spine Runtime, or modify a spine Runtime, then you will need a valid [spine license](https://esotericsoftware.com/spine-purchase). Please see the [spine Runtimes Software License](http://esotericsoftware.com/git/spine-runtimes/blob/LICENSE) for detailed information.
+You are welcome to evaluate the Spine Runtimes and the examples we provide in this repository free of charge.
 
-The spine Runtimes are developed with the intent to be used with data exported from spine. By purchasing spine, `Section 2` of the [spine Software License](https://esotericsoftware.com/files/license.txt) grants the right to create and distribute derivative works of the spine Runtimes.
+You can integrate the Spine Runtimes into your software free of charge, but users of your software must have their own [Spine license](https://esotericsoftware.com/spine-purchase). Please make your users aware of this requirement! This option is often chosen by those making development tools, such as an SDK, game toolkit, or software library.
 
-## spine version
+In order to distribute your software containing the Spine Runtimes to others that don't have a Spine license, you need a [Spine license](https://esotericsoftware.com/spine-purchase) at the time of integration. Then you can distribute your software containing the Spine Runtimes however you like, provided others don't modify it or use it to create new software. If others want to do that, they'll need their own Spine license.
 
-spine-cpp works with data exported from spine 3.7.xx.
+For the official legal terms governing the Spine Runtimes, please read the [Spine Runtimes License Agreement](http://esotericsoftware.com/spine-runtimes-license) and Section 2 of the [Spine Editor License Agreement](http://esotericsoftware.com/spine-editor-license#s2).
+
+## Spine version
+
+spine-cpp works with data exported from spine 3.8.xx.
 
 spine-cpp supports all spine features.
 
@@ -18,6 +22,9 @@ spine-cpp supports all spine features.
 
 1. Download the spine Runtimes source using [git](https://help.github.com/articles/set-up-git) or by downloading it as a zip via the download button above.
 2. Copy the contents of the `spine-cpp/spine-cpp/src` and `spine-cpp/spine-cpp/include` directories into your project. Be sure your header search is configured to find the contents of the `spine-cpp/spine-cpp/include` directory. Note that the includes use `spine/Xxx.h`, so the `spine` directory cannot be omitted when copying the files.
+
+## Usage
+### [Please see the spine-cpp guide for full documentation](http://esotericsoftware.com/spine-cpp)
 
 ## Extension
 

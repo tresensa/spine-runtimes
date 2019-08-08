@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 module spine {
@@ -101,8 +100,23 @@ module spine {
 			this.updateCacheReset.length = 0;
 
 			let bones = this.bones;
-			for (let i = 0, n = bones.length; i < n; i++)
-				bones[i].sorted = false;
+			for (let i = 0, n = bones.length; i < n; i++) {
+				let bone = bones[i];
+				bone.sorted = bone.data.skinRequired;
+				bone.active = !bone.sorted;
+			}
+
+			if (this.skin != null) {
+				let skinBones = this.skin.bones;
+				for (let i = 0, n = this.skin.bones.length; i < n; i++) {
+					let bone = this.bones[skinBones[i].index];
+					do {
+						bone.sorted = false;
+						bone.active = true;
+						bone = bone.parent;
+					} while (bone != null);
+				}
+			}
 
 			// IK first, lowest hierarchy depth first.
 			let ikConstraints = this.ikConstraints;
@@ -143,6 +157,9 @@ module spine {
 		}
 
 		sortIkConstraint (constraint: IkConstraint) {
+			constraint.active = constraint.target.isActive() && (!constraint.data.skinRequired || (this.skin != null && Utils.contains(this.skin.constraints, constraint.data, true)));
+			if (!constraint.active) return;
+
 			let target = constraint.target;
 			this.sortBone(target);
 
@@ -162,6 +179,9 @@ module spine {
 		}
 
 		sortPathConstraint (constraint: PathConstraint) {
+			constraint.active = constraint.target.bone.isActive() && (!constraint.data.skinRequired || (this.skin != null && Utils.contains(this.skin.constraints, constraint.data, true)));
+			if (!constraint.active) return;
+
 			let slot = constraint.target;
 			let slotIndex = slot.data.index;
 			let slotBone = slot.bone;
@@ -188,6 +208,9 @@ module spine {
 		}
 
 		sortTransformConstraint (constraint: TransformConstraint) {
+			constraint.active = constraint.target.isActive() && (!constraint.data.skinRequired || (this.skin != null && Utils.contains(this.skin.constraints, constraint.data, true)));
+			if (!constraint.active) return;
+
 			this.sortBone(constraint.target);
 
 			let constrained = constraint.bones;
@@ -249,6 +272,7 @@ module spine {
 		sortReset (bones: Array<Bone>) {
 			for (let i = 0, n = bones.length; i < n; i++) {
 				let bone = bones[i];
+				if (!bone.active) continue;
 				if (bone.sorted) this.sortReset(bone.children);
 				bone.sorted = false;
 			}
@@ -289,6 +313,7 @@ module spine {
 			for (let i = 0, n = ikConstraints.length; i < n; i++) {
 				let constraint = ikConstraints[i];
 				constraint.mix = constraint.data.mix;
+				constraint.softness = constraint.data.softness;
 				constraint.bendDirection = constraint.data.bendDirection;
 				constraint.compress = constraint.data.compress;
 				constraint.stretch = constraint.data.stretch;
@@ -381,6 +406,7 @@ module spine {
 		 * old skin, each slot's setup mode attachment is attached from the new skin.
 		 * @param newSkin May be null. */
 		setSkin (newSkin: Skin) {
+			if (newSkin == this.skin) return;
 			if (newSkin != null) {
 				if (this.skin != null)
 					newSkin.attachAll(this, this.skin);
@@ -397,6 +423,7 @@ module spine {
 				}
 			}
 			this.skin = newSkin;
+			this.updateCache();
 		}
 
 		/** @return May be null. */
@@ -479,6 +506,7 @@ module spine {
 			let minX = Number.POSITIVE_INFINITY, minY = Number.POSITIVE_INFINITY, maxX = Number.NEGATIVE_INFINITY, maxY = Number.NEGATIVE_INFINITY;
 			for (let i = 0, n = drawOrder.length; i < n; i++) {
 				let slot = drawOrder[i];
+				if (!slot.bone.active) continue;
 				let verticesLength = 0;
 				let vertices: ArrayLike<number> = null;
 				let attachment = slot.getAttachment();

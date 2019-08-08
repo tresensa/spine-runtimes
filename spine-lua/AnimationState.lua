@@ -1,31 +1,30 @@
 -------------------------------------------------------------------------------
--- Spine Runtimes Software License v2.5
+-- Spine Runtimes License Agreement
+-- Last updated May 1, 2019. Replaces all prior versions.
 --
--- Copyright (c) 2013-2016, Esoteric Software
--- All rights reserved.
+-- Copyright (c) 2013-2019, Esoteric Software LLC
 --
--- You are granted a perpetual, non-exclusive, non-sublicensable, and
--- non-transferable license to use, install, execute, and perform the Spine
--- Runtimes software and derivative works solely for personal or internal
--- use. Without the written permission of Esoteric Software (see Section 2 of
--- the Spine Software License Agreement), you may not (a) modify, translate,
--- adapt, or develop new applications using the Spine Runtimes or otherwise
--- create derivative works or improvements of the Spine Runtimes or (b) remove,
--- delete, alter, or obscure any trademarks or any copyright, trademark, patent,
--- or other intellectual property or proprietary rights notices on or in the
--- Software, including any copy thereof. Redistributions in binary or source
--- form must include this license and terms.
+-- Integration of the Spine Runtimes into software or otherwise creating
+-- derivative works of the Spine Runtimes is permitted under the terms and
+-- conditions of Section 2 of the Spine Editor License Agreement:
+-- http://esotericsoftware.com/spine-editor-license
 --
--- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
--- IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
--- MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
--- EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
--- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
--- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
--- USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
--- IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
--- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
--- POSSIBILITY OF SUCH DAMAGE.
+-- Otherwise, it is permitted to integrate the Spine Runtimes into software
+-- or otherwise create derivative works of the Spine Runtimes (collectively,
+-- "Products"), provided that each user of the Products must obtain their own
+-- Spine Editor license and redistribution of the Products in any form must
+-- include this license and copyright notice.
+--
+-- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+-- OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+-- OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+-- NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+-- INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+-- BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+-- INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+-- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+-- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+-- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -------------------------------------------------------------------------------
 
 local setmetatable = setmetatable
@@ -42,6 +41,9 @@ local math_signum = utils.signum
 local math_floor = math.floor
 local math_ceil = math.ceil
 local math_mod = utils.mod
+local testBit = utils.testBit
+local setBit = utils.setBit
+local clearBit = utils.clearBit
 
 local function zlen(array)
 	return #array + 1
@@ -51,7 +53,8 @@ local EMPTY_ANIMATION = Animation.new("<empty>", {}, 0)
 local SUBSEQUENT = 0
 local FIRST = 1
 local HOLD = 2
-local HOLD_MIX = 3;
+local HOLD_MIX = 3
+local NOT_LAST = 4
 
 local EventType = {
 	start = 0,
@@ -249,7 +252,11 @@ function AnimationState:update (delta)
 					local nextTime = current.trackLast - _next.delay
 					if nextTime >= 0 then
 						_next.delay = 0
-						_next.trackTime = (nextTime / current.timeScale + delta) * _next.timeScale
+						if current.timeScale == 0 then
+							_next.trackTime = 0
+						else
+							_next.trackTime = (nextTime / current.timeScale + delta) * _next.timeScale
+						end
 						current.trackTime = current.trackTime + currentDelta
 						self:setCurrent(i, _next, true)
 						while _next.mixingFrom do
@@ -319,7 +326,6 @@ function AnimationState:apply (skeleton)
 	if skeleton == nil then error("skeleton cannot be null.", 2) end
 	if self.animationsChanged then self:_animationsChanged() end
 
-	local events = self.events
 	local tracks = self.tracks
 	local queue = self.queue
   local applied = false
@@ -343,9 +349,9 @@ function AnimationState:apply (skeleton)
 			local animationLast = current.animationLast
 			local animationTime = current:getAnimationTime()
 			local timelines = current.animation.timelines
-			if i == 0 and (mix == 1 or blend == MixBlend.add) then
+			if (i == 0 and mix == 1) or blend == MixBlend.add then
 				for i,timeline in ipairs(timelines) do
-					timeline:apply(skeleton, animationLast, animationTime, events, mix, blend, MixDirection._in)
+					timeline:apply(skeleton, animationLast, animationTime, self.events, mix, blend, MixDirection._in)
 				end
 			else
 				local timelineMode = current.timelineMode
@@ -354,19 +360,18 @@ function AnimationState:apply (skeleton)
 
 				for ii,timeline in ipairs(timelines) do
 					local timelineBlend = MixBlend.setup
-					if timelineMode[ii] == SUBSEQUENT then timelineBlend = blend end
+					if clearBit(timelineMode[ii], NOT_LAST) == SUBSEQUENT then timelineBlend = blend end
 
 					if timeline.type == Animation.TimelineType.rotate then
 						self:applyRotateTimeline(timeline, skeleton, animationTime, mix, timelineBlend, timelinesRotation, ii * 2,
 							firstFrame)
 					else
-						timeline:apply(skeleton, animationLast, animationTime, events, mix, timelineBlend, MixDirection._in)
+						timeline:apply(skeleton, animationLast, animationTime, self.events, mix, timelineBlend, MixDirection._in)
 					end
 				end
 			end
 			self:queueEvents(current, animationTime)
 			self.events = {};
-			events = self.events;
 			current.nextAnimationLast = animationTime
 			current.nextTrackLast = current.trackTime
 		end
@@ -418,15 +423,21 @@ function AnimationState:applyMixingFrom (to, skeleton, blend)
       local direction = MixDirection.out;
 			local timelineBlend = MixBlend.setup
 			local alpha = 0
-			if timelineMode[i] == SUBSEQUENT then
-				if not attachments and timeline.type == Animation.TimelineType.attachment then skipSubsequent = true end
+			if clearBit(timelineMode[i], NOT_LAST) == SUBSEQUENT then
+				if not attachments and timeline.type == Animation.TimelineType.attachment then
+					if testBit(timelineMode[i], NOT_LAST) then 
+						skipSubsequent = true
+					else
+						blend = MixBlend.setup
+					end
+				end
 				if not drawOrder and timeline.type == Animation.TimelineType.drawOrder then skipSubsequent = true end
 				timelineBlend = blend
 				alpha = alphaMix
-			elseif timelineMode[i] == FIRST then
+			elseif clearBit(timelineMode[i], NOT_LAST) == FIRST then
 				timelineBlend = MixBlend.setup
 				alpha = alphaMix
-			elseif timelineMode[i] == HOLD then
+			elseif clearBit(timelineMode[i], NOT_LAST) == HOLD then
 				timelineBlend = MixBlend.setup
 				alpha = alphaHold
 			else
@@ -442,18 +453,20 @@ function AnimationState:applyMixingFrom (to, skeleton, blend)
 				else
           if timelineBlend == MixBlend.setup then
             if timeline.type == Animation.TimelineType.attachment then
-              if attachments then direction = MixDirection._in end
+              if attachments or testBit(timelineMode[i], NOT_LAST) then direction = MixDirection._in end
             elseif timeline.type == Animation.TimelineType.drawOrder then
               if drawOrder then direction = MixDirection._in end
             end
           end
-					timeline:apply(skeleton, animationLast, animationTime, events, alpha, timelineBlend, direction)
+					timeline:apply(skeleton, animationLast, animationTime, self.events, alpha, timelineBlend, direction)
 				end
 			end
 		end
 	end
 
-	if (to.mixDuration > 0) then 	self:queueEvents(from, animationTime) end
+	if (to.mixDuration > 0) then 
+    self:queueEvents(from, animationTime)
+  end
 	self.events = {};
 	from.nextAnimationLast = animationTime
 	from.nextTrackLast = from.trackTime
@@ -475,31 +488,43 @@ function AnimationState:applyRotateTimeline (timeline, skeleton, time, alpha, bl
   local rotateTimeline = timeline
   local frames = rotateTimeline.frames
   local bone = skeleton.bones[rotateTimeline.boneIndex]
+  if not bone.active then return end
+	local r1 = 0
+	local r2 = 0
   if time < frames[0] then
-		if blend == MixBlend.setup then bone.rotation = bone.data.rotation end
-		return
+		if blend == MixBlend.setup then
+			bone.rotation = bone.data.rotation
+			return
+		elseif blend == MixBlend.first then
+			r1 = bone.rotation
+			r2 = bone.data.rotation
+		else
+			return
+		end
+	else
+		if blend == MixBlend.setup then
+			r1 = bone.data.rotation
+		else
+			r1 = bone.rotation
+		end
+		if time >= frames[zlen(frames) - Animation.RotateTimeline.ENTRIES] then -- Time is after last frame.
+			r2 = bone.data.rotation + frames[zlen(frames) + Animation.RotateTimeline.PREV_ROTATION]
+		else
+			-- Interpolate between the previous frame and the current frame.
+			local frame = Animation.binarySearch(frames, time, Animation.RotateTimeline.ENTRIES)
+			local prevRotation = frames[frame + Animation.RotateTimeline.PREV_ROTATION]
+			local frameTime = frames[frame]
+			local percent = rotateTimeline:getCurvePercent(math_floor(frame / 2) - 1,
+				1 - (time - frameTime) / (frames[frame + Animation.RotateTimeline.PREV_TIME] - frameTime))
+
+			r2 = frames[frame + Animation.RotateTimeline.ROTATION] - prevRotation
+			r2 = r2 - (16384 - math_floor(16384.499999999996 - r2 / 360)) * 360
+			r2 = prevRotation + r2 * percent + bone.data.rotation
+			r2 = r2 - (16384 - math_floor(16384.499999999996 - r2 / 360)) * 360
+		end
 	end
 
-  local r2 = 0
-  if time >= frames[zlen(frames) - Animation.RotateTimeline.ENTRIES] then -- Time is after last frame.
-    r2 = bone.data.rotation + frames[zlen(frames) + Animation.RotateTimeline.PREV_ROTATION]
-  else
-    -- Interpolate between the previous frame and the current frame.
-    local frame = Animation.binarySearch(frames, time, Animation.RotateTimeline.ENTRIES)
-    local prevRotation = frames[frame + Animation.RotateTimeline.PREV_ROTATION]
-    local frameTime = frames[frame]
-    local percent = rotateTimeline:getCurvePercent(math_floor(frame / 2) - 1,
-      1 - (time - frameTime) / (frames[frame + Animation.RotateTimeline.PREV_TIME] - frameTime))
-
-    r2 = frames[frame + Animation.RotateTimeline.ROTATION] - prevRotation
-    r2 = r2 - (16384 - math_floor(16384.499999999996 - r2 / 360)) * 360
-    r2 = prevRotation + r2 * percent + bone.data.rotation
-    r2 = r2 - (16384 - math_floor(16384.499999999996 - r2 / 360)) * 360
-  end
-
   -- Mix between rotations using the direction of the shortest route on the first frame while detecting crosses.
-  local r1 = bone.rotation
-  if blend == MixBlend.setup then r1 = bone.data.rotation end
   local total = 0
   local diff = r2 - r1
 	diff = diff - (16384 - math_floor(16384.499999999996 - diff / 360)) * 360
@@ -789,7 +814,10 @@ function AnimationState:_animationsChanged ()
 
 	self.propertyIDs = {}
 
+	local highestIndex = -1
 	for i, entry in pairs(self.tracks) do
+		if i > highestIndex then highestIndex = i end
+
 		if entry then
 			while entry.mixingFrom do
 				entry = entry.mixingFrom
@@ -797,15 +825,45 @@ function AnimationState:_animationsChanged ()
 
 			repeat
 				if (entry.mixingTo == nil or entry.mixBlend ~= MixBlend.add) then
-					self:setTimelineModes(entry)
+					self:computeHold(entry)
 				end
 				entry = entry.mixingTo
 			until (entry == nil)
 		end
 	end
+
+	self.propertyIDs = {}
+	for i = highestIndex, 0, -1 do
+		entry = self.tracks[i]
+		while entry do
+			self:computeNotLast(entry)
+			entry = entry.mixingFrom
+		end
+	end
 end
 
-function AnimationState:setTimelineModes(entry)
+function AnimationState:computeNotLast(entry)
+	local timelines = entry.animation.timelines
+	local timelinesCount = #entry.animation.timelines
+	local timelineMode = entry.timelineMode
+	local propertyIDs = self.propertyIDs
+ 
+	local i = 1
+	while i <= timelinesCount do
+		local timeline = timelines[i]
+		if (timeline.type == Animation.TimelineType.attachment) then
+			local slotIndex = timeline.slotIndex
+			if not (propertyIDs[slotIndex] == nil) then
+				timelineMode[i] = setBit(timelineMode[i], NOT_LAST)
+			else
+				propertyIDs[slotIndex] = true
+			end
+		end
+		i = i + 1
+	end
+end
+
+function AnimationState:computeHold(entry)
 	local to = entry.mixingTo
 	local timelines = entry.animation.timelines
 	local timelinesCount = #entry.animation.timelines
@@ -833,7 +891,11 @@ function AnimationState:setTimelineModes(entry)
 			timelineMode[i] = SUBSEQUENT
 		else
 			propertyIDs[id] = id
-			if to == nil or not self:hasTimeline(to, id) then
+			local timeline = timelines[i]
+			if to == nil or timeline.type == Animation.TimelineType.attachment 
+				or timeline.type == Animation.TimelineType.drawOrder 
+				or timeline.type == Animation.TimelineType.event 
+				or not self:hasTimeline(to, id) then
 				timelineMode[i] = FIRST
 			else
 				local next = to.mixingTo

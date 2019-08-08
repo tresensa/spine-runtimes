@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package spine {
@@ -105,8 +104,24 @@ package spine {
 			var bones : Vector.<Bone> = this.bones;
 			var i : Number = 0;
 			var n : Number = 0;
-			for (i = 0, n = bones.length; i < n; i++)
-				bones[i]._sorted = false;
+			var bone : Bone;
+			for (i = 0, n = bones.length; i < n; i++) {
+				bone = bones[i];
+				bone._sorted = bone.data.skinRequired;
+				bone.active = !bone._sorted;				
+			}
+			
+			if (skin != null) {
+				var skinBones : Vector.<BoneData> = skin.bones;
+				for (i = 0, n = this.skin.bones.length; i < n; i++) {
+					bone = this.bones[skinBones[i].index];
+					do {
+						bone._sorted = false;
+						bone.active = true;
+						bone = bone.parent;
+					} while (bone != null);
+				}
+			}
 
 			// IK first, lowest hierarchy depth first.
 			var ikConstraints : Vector.<IkConstraint> = this.ikConstraints;
@@ -144,8 +159,17 @@ package spine {
 			for (i = 0, n = bones.length; i < n; i++)
 				sortBone(bones[i]);
 		}
+		
+		static function contains(list : Vector.<ConstraintData>, element : ConstraintData) : Boolean {
+			for (var i : Number = 0; i < list.length; i++)
+				if  (list[i] == element) return true;
+			return false;
+		}
 
 		private function sortIkConstraint(constraint : IkConstraint) : void {
+			constraint.active = constraint.target.isActive() && (!constraint.data.skinRequired || (this.skin != null && contains(this.skin.constraints, constraint.data)));
+			if (!constraint.active) return;
+			
 			var target : Bone = constraint.target;
 			sortBone(target);
 
@@ -165,6 +189,9 @@ package spine {
 		}
 
 		private function sortPathConstraint(constraint : PathConstraint) : void {
+			constraint.active = constraint.target.bone.isActive() && (!constraint.data.skinRequired || (this.skin != null && contains(this.skin.constraints, constraint.data)));
+			if (!constraint.active) return;
+			
 			var slot : Slot = constraint.target;
 			var slotIndex : Number = slot.data.index;
 			var slotBone : Bone = slot.bone;
@@ -193,6 +220,9 @@ package spine {
 		}
 
 		private function sortTransformConstraint(constraint : TransformConstraint) : void {
+			constraint.active = constraint.target.isActive() && (!constraint.data.skinRequired || (this.skin != null && contains(this.skin.constraints, constraint.data)));
+			if (!constraint.active) return;
+			
 			sortBone(constraint.target);
 
 			var constrained : Vector.<Bone> = constraint.bones;
@@ -256,6 +286,7 @@ package spine {
 		private function sortReset(bones : Vector.<Bone>) : void {
 			for (var i : int = 0, n : int = bones.length; i < n; i++) {
 				var bone : Bone = bones[i];
+				if (!bone.active) continue;
 				if (bone._sorted) sortReset(bone.children);
 				bone._sorted = false;
 			}
@@ -291,6 +322,7 @@ package spine {
 
 			for each (var ikConstraint : IkConstraint in ikConstraints) {
 				ikConstraint.mix = ikConstraint._data.mix;
+				ikConstraint.softness = ikConstraint._data.softness;
 				ikConstraint.bendDirection = ikConstraint._data.bendDirection;				
 				ikConstraint.compress = ikConstraint._data.compress;
 				ikConstraint.stretch = ikConstraint._data.stretch;				
@@ -394,6 +426,7 @@ package spine {
 		 * no old skin, each slot's setup mode attachment is attached from the new skin.
 		 * @param newSkin May be null. */
 		public function set skin(newSkin : Skin) : void {
+			if (newSkin == _skin) return;
 			if (newSkin) {
 				if (skin)
 					newSkin.attachAll(this, skin);
@@ -410,6 +443,7 @@ package spine {
 				}
 			}
 			_skin = newSkin;
+			updateCache();
 		}
 
 		/** @return May be null. */
@@ -452,7 +486,7 @@ package spine {
 		public function findIkConstraint(constraintName : String) : IkConstraint {
 			if (constraintName == null) throw new ArgumentError("constraintName cannot be null.");
 			for each (var ikConstraint : IkConstraint in ikConstraints)
-				if (ikConstraint._data._name == constraintName) return ikConstraint;
+				if (ikConstraint._data.name == constraintName) return ikConstraint;
 			return null;
 		}
 
@@ -460,7 +494,7 @@ package spine {
 		public function findTransformConstraint(constraintName : String) : TransformConstraint {
 			if (constraintName == null) throw new ArgumentError("constraintName cannot be null.");
 			for each (var transformConstraint : TransformConstraint in transformConstraints)
-				if (transformConstraint._data._name == constraintName) return transformConstraint;
+				if (transformConstraint._data.name == constraintName) return transformConstraint;
 			return null;
 		}
 
@@ -468,7 +502,7 @@ package spine {
 		public function findPathConstraint(constraintName : String) : PathConstraint {
 			if (constraintName == null) throw new ArgumentError("constraintName cannot be null.");
 			for each (var pathConstraint : PathConstraint in pathConstraints)
-				if (pathConstraint._data._name == constraintName) return pathConstraint;
+				if (pathConstraint._data.name == constraintName) return pathConstraint;
 			return null;
 		}
 

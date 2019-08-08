@@ -1,37 +1,37 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package com.esotericsoftware.spine;
 
 import static com.esotericsoftware.spine.Animation.MixBlend.*;
 import static com.esotericsoftware.spine.Animation.MixDirection.*;
+import static com.esotericsoftware.spine.utils.SpineUtils.*;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.MathUtils;
@@ -71,7 +71,8 @@ public class Animation {
 	/** Applies all the animation's timelines to the specified skeleton.
 	 * <p>
 	 * See Timeline {@link Timeline#apply(Skeleton, float, float, Array, float, MixBlend, MixDirection)}.
-	 * @param loop If true, the animation repeats after {@link #getDuration()}. */
+	 * @param loop If true, the animation repeats after {@link #getDuration()}.
+	 * @param events May be null to ignore fired events. */
 	public void apply (Skeleton skeleton, float lastTime, float time, boolean loop, Array<Event> events, float alpha,
 		MixBlend blend, MixDirection direction) {
 		if (skeleton == null) throw new IllegalArgumentException("skeleton cannot be null.");
@@ -86,7 +87,7 @@ public class Animation {
 			timelines.get(i).apply(skeleton, lastTime, time, events, alpha, blend, direction);
 	}
 
-	/** The animation's name, which is unique within the skeleton. */
+	/** The animation's name, which is unique across all animations in the skeleton. */
 	public String getName () {
 		return name;
 	}
@@ -145,12 +146,12 @@ public class Animation {
 		 *           (exclusive) and <code>time</code> (inclusive).
 		 * @param time The time within the animation. Most timelines find the key before and the key after this time so they can
 		 *           interpolate between the keys.
-		 * @param events If any events are fired, they are added to this list. Can be null to ignore firing events or if the
-		 *           timeline does not fire events.
+		 * @param events If any events are fired, they are added to this list. Can be null to ignore fired events or if the timeline
+		 *           does not fire events.
 		 * @param alpha 0 applies the current or setup value (depending on <code>blend</code>). 1 applies the timeline value.
 		 *           Between 0 and 1 applies a value between the current or setup value and the timeline value. By adjusting
 		 *           <code>alpha</code> over time, an animation can be mixed in or out. <code>alpha</code> can also be useful to
-		 *           apply animations on top of each other (layered).
+		 *           apply animations on top of each other (layering).
 		 * @param blend Controls how mixing is applied when <code>alpha</code> < 1.
 		 * @param direction Indicates whether the timeline is mixing in or out. Used by timelines which perform instant transitions,
 		 *           such as {@link DrawOrderTimeline} or {@link AttachmentTimeline}. */
@@ -161,7 +162,8 @@ public class Animation {
 		public int getPropertyId ();
 	}
 
-	/** Controls how a timeline value is mixed with the setup pose value or current pose value.
+	/** Controls how a timeline value is mixed with the setup pose value or current pose value when a timeline's <code>alpha</code>
+	 * < 1.
 	 * <p>
 	 * See Timeline {@link Timeline#apply(Skeleton, float, float, Array, float, MixBlend, MixDirection)}. */
 	static public enum MixBlend {
@@ -182,7 +184,9 @@ public class Animation {
 		/** Transitions from the current value to the current value plus the timeline value. No change is made before the first key
 		 * (the current value is kept until the first key).
 		 * <p>
-		 * <code>add</code> is intended for animations layered on top of others, not for the first animations applied. */
+		 * <code>add</code> is intended for animations layered on top of others, not for the first animations applied. Properties
+		 * keyed by additive animations must be set manually or by another animation before applying the additive animations, else
+		 * the property values will increase continually. */
 		add
 	}
 
@@ -350,6 +354,7 @@ public class Animation {
 			MixDirection direction) {
 
 			Bone bone = skeleton.bones.get(boneIndex);
+			if (!bone.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
@@ -447,6 +452,7 @@ public class Animation {
 			MixDirection direction) {
 
 			Bone bone = skeleton.bones.get(boneIndex);
+			if (!bone.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
@@ -508,6 +514,7 @@ public class Animation {
 			MixDirection direction) {
 
 			Bone bone = skeleton.bones.get(boneIndex);
+			if (!bone.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
@@ -610,6 +617,7 @@ public class Animation {
 			MixDirection direction) {
 
 			Bone bone = skeleton.bones.get(boneIndex);
+			if (!bone.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
@@ -704,6 +712,7 @@ public class Animation {
 			MixDirection direction) {
 
 			Slot slot = skeleton.slots.get(slotIndex);
+			if (!slot.bone.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
@@ -775,7 +784,8 @@ public class Animation {
 			this.slotIndex = index;
 		}
 
-		/** The index of the slot in {@link Skeleton#getSlots()} that will be changed. */
+		/** The index of the slot in {@link Skeleton#getSlots()} that will be changed. The {@link Slot#getDarkColor()} must not be
+		 * null. */
 		public int getSlotIndex () {
 			return slotIndex;
 		}
@@ -802,6 +812,7 @@ public class Animation {
 			MixDirection direction) {
 
 			Slot slot = skeleton.slots.get(slotIndex);
+			if (!slot.bone.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
@@ -872,6 +883,7 @@ public class Animation {
 		final String[] attachmentNames;
 
 		public AttachmentTimeline (int frameCount) {
+			if (frameCount <= 0) throw new IllegalArgumentException("frameCount must be > 0: " + frameCount);
 			frames = new float[frameCount];
 			attachmentNames = new String[frameCount];
 		}
@@ -915,6 +927,7 @@ public class Animation {
 			MixDirection direction) {
 
 			Slot slot = skeleton.slots.get(slotIndex);
+			if (!slot.bone.active) return;
 			if (direction == out && blend == setup) {
 				String attachmentName = slot.data.attachmentName;
 				slot.setAttachment(attachmentName == null ? null : skeleton.getAttachment(slotIndex, attachmentName));
@@ -941,7 +954,7 @@ public class Animation {
 		}
 	}
 
-	/** Changes a slot's {@link Slot#getAttachmentVertices()} to deform a {@link VertexAttachment}. */
+	/** Changes a slot's {@link Slot#getDeform()} to deform a {@link VertexAttachment}. */
 	static public class DeformTimeline extends CurveTimeline implements SlotTimeline {
 		int slotIndex;
 		VertexAttachment attachment;
@@ -998,11 +1011,13 @@ public class Animation {
 			MixDirection direction) {
 
 			Slot slot = skeleton.slots.get(slotIndex);
+			if (!slot.bone.active) return;
 			Attachment slotAttachment = slot.attachment;
-			if (!(slotAttachment instanceof VertexAttachment) || !((VertexAttachment)slotAttachment).applyDeform(attachment)) return;
+			if (!(slotAttachment instanceof VertexAttachment)
+				|| ((VertexAttachment)slotAttachment).getDeformAttachment() != attachment) return;
 
-			FloatArray verticesArray = slot.getAttachmentVertices();
-			if (verticesArray.size == 0) blend = setup;
+			FloatArray deformArray = slot.getDeform();
+			if (deformArray.size == 0) blend = setup;
 
 			float[][] frameVertices = this.frameVertices;
 			int vertexCount = frameVertices[0].length;
@@ -1012,30 +1027,30 @@ public class Animation {
 				VertexAttachment vertexAttachment = (VertexAttachment)slotAttachment;
 				switch (blend) {
 				case setup:
-					verticesArray.clear();
+					deformArray.clear();
 					return;
 				case first:
 					if (alpha == 1) {
-						verticesArray.clear();
+						deformArray.clear();
 						return;
 					}
-					float[] vertices = verticesArray.setSize(vertexCount);
+					float[] deform = deformArray.setSize(vertexCount);
 					if (vertexAttachment.getBones() == null) {
 						// Unweighted vertex positions.
 						float[] setupVertices = vertexAttachment.getVertices();
 						for (int i = 0; i < vertexCount; i++)
-							vertices[i] += (setupVertices[i] - vertices[i]) * alpha;
+							deform[i] += (setupVertices[i] - deform[i]) * alpha;
 					} else {
 						// Weighted deform offsets.
 						alpha = 1 - alpha;
 						for (int i = 0; i < vertexCount; i++)
-							vertices[i] *= alpha;
+							deform[i] *= alpha;
 					}
 				}
 				return;
 			}
 
-			float[] vertices = verticesArray.setSize(vertexCount);
+			float[] deform = deformArray.setSize(vertexCount);
 
 			if (time >= frames[frames.length - 1]) { // Time is after last frame.
 				float[] lastVertices = frameVertices[frames.length - 1];
@@ -1046,15 +1061,15 @@ public class Animation {
 							// Unweighted vertex positions, no alpha.
 							float[] setupVertices = vertexAttachment.getVertices();
 							for (int i = 0; i < vertexCount; i++)
-								vertices[i] += lastVertices[i] - setupVertices[i];
+								deform[i] += lastVertices[i] - setupVertices[i];
 						} else {
 							// Weighted deform offsets, no alpha.
 							for (int i = 0; i < vertexCount; i++)
-								vertices[i] += lastVertices[i];
+								deform[i] += lastVertices[i];
 						}
 					} else {
 						// Vertex positions or deform offsets, no alpha.
-						System.arraycopy(lastVertices, 0, vertices, 0, vertexCount);
+						arraycopy(lastVertices, 0, deform, 0, vertexCount);
 					}
 				} else {
 					switch (blend) {
@@ -1065,12 +1080,12 @@ public class Animation {
 							float[] setupVertices = vertexAttachment.getVertices();
 							for (int i = 0; i < vertexCount; i++) {
 								float setup = setupVertices[i];
-								vertices[i] = setup + (lastVertices[i] - setup) * alpha;
+								deform[i] = setup + (lastVertices[i] - setup) * alpha;
 							}
 						} else {
 							// Weighted deform offsets, with alpha.
 							for (int i = 0; i < vertexCount; i++)
-								vertices[i] = lastVertices[i] * alpha;
+								deform[i] = lastVertices[i] * alpha;
 						}
 						break;
 					}
@@ -1078,7 +1093,7 @@ public class Animation {
 					case replace:
 						// Vertex positions or deform offsets, with alpha.
 						for (int i = 0; i < vertexCount; i++)
-							vertices[i] += (lastVertices[i] - vertices[i]) * alpha;
+							deform[i] += (lastVertices[i] - deform[i]) * alpha;
 						break;
 					case add:
 						VertexAttachment vertexAttachment = (VertexAttachment)slotAttachment;
@@ -1086,11 +1101,11 @@ public class Animation {
 							// Unweighted vertex positions, no alpha.
 							float[] setupVertices = vertexAttachment.getVertices();
 							for (int i = 0; i < vertexCount; i++)
-								vertices[i] += (lastVertices[i] - setupVertices[i]) * alpha;
+								deform[i] += (lastVertices[i] - setupVertices[i]) * alpha;
 						} else {
 							// Weighted deform offsets, alpha.
 							for (int i = 0; i < vertexCount; i++)
-								vertices[i] += lastVertices[i] * alpha;
+								deform[i] += lastVertices[i] * alpha;
 						}
 					}
 				}
@@ -1112,20 +1127,20 @@ public class Animation {
 						float[] setupVertices = vertexAttachment.getVertices();
 						for (int i = 0; i < vertexCount; i++) {
 							float prev = prevVertices[i];
-							vertices[i] += prev + (nextVertices[i] - prev) * percent - setupVertices[i];
+							deform[i] += prev + (nextVertices[i] - prev) * percent - setupVertices[i];
 						}
 					} else {
 						// Weighted deform offsets, no alpha.
 						for (int i = 0; i < vertexCount; i++) {
 							float prev = prevVertices[i];
-							vertices[i] += prev + (nextVertices[i] - prev) * percent;
+							deform[i] += prev + (nextVertices[i] - prev) * percent;
 						}
 					}
 				} else {
 					// Vertex positions or deform offsets, no alpha.
 					for (int i = 0; i < vertexCount; i++) {
 						float prev = prevVertices[i];
-						vertices[i] = prev + (nextVertices[i] - prev) * percent;
+						deform[i] = prev + (nextVertices[i] - prev) * percent;
 					}
 				}
 			} else {
@@ -1137,13 +1152,13 @@ public class Animation {
 						float[] setupVertices = vertexAttachment.getVertices();
 						for (int i = 0; i < vertexCount; i++) {
 							float prev = prevVertices[i], setup = setupVertices[i];
-							vertices[i] = setup + (prev + (nextVertices[i] - prev) * percent - setup) * alpha;
+							deform[i] = setup + (prev + (nextVertices[i] - prev) * percent - setup) * alpha;
 						}
 					} else {
 						// Weighted deform offsets, with alpha.
 						for (int i = 0; i < vertexCount; i++) {
 							float prev = prevVertices[i];
-							vertices[i] = (prev + (nextVertices[i] - prev) * percent) * alpha;
+							deform[i] = (prev + (nextVertices[i] - prev) * percent) * alpha;
 						}
 					}
 					break;
@@ -1153,7 +1168,7 @@ public class Animation {
 					// Vertex positions or deform offsets, with alpha.
 					for (int i = 0; i < vertexCount; i++) {
 						float prev = prevVertices[i];
-						vertices[i] += (prev + (nextVertices[i] - prev) * percent - vertices[i]) * alpha;
+						deform[i] += (prev + (nextVertices[i] - prev) * percent - deform[i]) * alpha;
 					}
 					break;
 				case add:
@@ -1163,13 +1178,13 @@ public class Animation {
 						float[] setupVertices = vertexAttachment.getVertices();
 						for (int i = 0; i < vertexCount; i++) {
 							float prev = prevVertices[i];
-							vertices[i] += (prev + (nextVertices[i] - prev) * percent - setupVertices[i]) * alpha;
+							deform[i] += (prev + (nextVertices[i] - prev) * percent - setupVertices[i]) * alpha;
 						}
 					} else {
 						// Weighted deform offsets, with alpha.
 						for (int i = 0; i < vertexCount; i++) {
 							float prev = prevVertices[i];
-							vertices[i] += (prev + (nextVertices[i] - prev) * percent) * alpha;
+							deform[i] += (prev + (nextVertices[i] - prev) * percent) * alpha;
 						}
 					}
 				}
@@ -1183,6 +1198,7 @@ public class Animation {
 		private final Event[] events;
 
 		public EventTimeline (int frameCount) {
+			if (frameCount <= 0) throw new IllegalArgumentException("frameCount must be > 0: " + frameCount);
 			frames = new float[frameCount];
 			events = new Event[frameCount];
 		}
@@ -1249,6 +1265,7 @@ public class Animation {
 		private final int[][] drawOrders;
 
 		public DrawOrderTimeline (int frameCount) {
+			if (frameCount <= 0) throw new IllegalArgumentException("frameCount must be > 0: " + frameCount);
 			frames = new float[frameCount];
 			drawOrders = new int[frameCount][];
 		}
@@ -1286,13 +1303,13 @@ public class Animation {
 			Array<Slot> drawOrder = skeleton.drawOrder;
 			Array<Slot> slots = skeleton.slots;
 			if (direction == out && blend == setup) {
-				System.arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);
+				arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);
 				return;
 			}
 
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
-				if (blend == setup || blend == first) System.arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);
+				if (blend == setup || blend == first) arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);
 				return;
 			}
 
@@ -1304,7 +1321,7 @@ public class Animation {
 
 			int[] drawOrderToSetupIndex = drawOrders[frame];
 			if (drawOrderToSetupIndex == null)
-				System.arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);
+				arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);
 			else {
 				for (int i = 0, n = drawOrderToSetupIndex.length; i < n; i++)
 					drawOrder.set(i, slots.get(drawOrderToSetupIndex[i]));
@@ -1312,15 +1329,16 @@ public class Animation {
 		}
 	}
 
-	/** Changes an IK constraint's {@link IkConstraint#getMix()}, {@link IkConstraint#getBendDirection()},
-	 * {@link IkConstraint#getStretch()}, and {@link IkConstraint#getCompress()}. */
+	/** Changes an IK constraint's {@link IkConstraint#getMix()}, {@link IkConstraint#getSoftness()},
+	 * {@link IkConstraint#getBendDirection()}, {@link IkConstraint#getStretch()}, and {@link IkConstraint#getCompress()}. */
 	static public class IkConstraintTimeline extends CurveTimeline {
-		static public final int ENTRIES = 5;
-		static private final int PREV_TIME = -5, PREV_MIX = -4, PREV_BEND_DIRECTION = -3, PREV_COMPRESS = -2, PREV_STRETCH = -1;
-		static private final int MIX = 1, BEND_DIRECTION = 2, COMPRESS = 3, STRETCH = 4;
+		static public final int ENTRIES = 6;
+		static private final int PREV_TIME = -6, PREV_MIX = -5, PREV_SOFTNESS = -4, PREV_BEND_DIRECTION = -3, PREV_COMPRESS = -2,
+			PREV_STRETCH = -1;
+		static private final int MIX = 1, SOFTNESS = 2, BEND_DIRECTION = 3, COMPRESS = 4, STRETCH = 5;
 
 		int ikConstraintIndex;
-		private final float[] frames; // time, mix, bendDirection, compress, stretch, ...
+		private final float[] frames; // time, mix, softness, bendDirection, compress, stretch, ...
 
 		public IkConstraintTimeline (int frameCount) {
 			super(frameCount);
@@ -1341,16 +1359,18 @@ public class Animation {
 			return ikConstraintIndex;
 		}
 
-		/** The time in seconds, mix, bend direction, compress, and stretch for each key frame. */
+		/** The time in seconds, mix, softness, bend direction, compress, and stretch for each key frame. */
 		public float[] getFrames () {
 			return frames;
 		}
 
-		/** Sets the time in seconds, mix, bend direction, compress, and stretch for the specified key frame. */
-		public void setFrame (int frameIndex, float time, float mix, int bendDirection, boolean compress, boolean stretch) {
+		/** Sets the time in seconds, mix, softness, bend direction, compress, and stretch for the specified key frame. */
+		public void setFrame (int frameIndex, float time, float mix, float softness, int bendDirection, boolean compress,
+			boolean stretch) {
 			frameIndex *= ENTRIES;
 			frames[frameIndex] = time;
 			frames[frameIndex + MIX] = mix;
+			frames[frameIndex + SOFTNESS] = softness;
 			frames[frameIndex + BEND_DIRECTION] = bendDirection;
 			frames[frameIndex + COMPRESS] = compress ? 1 : 0;
 			frames[frameIndex + STRETCH] = stretch ? 1 : 0;
@@ -1360,17 +1380,20 @@ public class Animation {
 			MixDirection direction) {
 
 			IkConstraint constraint = skeleton.ikConstraints.get(ikConstraintIndex);
+			if (!constraint.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
 				case setup:
 					constraint.mix = constraint.data.mix;
+					constraint.softness = constraint.data.softness;
 					constraint.bendDirection = constraint.data.bendDirection;
 					constraint.compress = constraint.data.compress;
 					constraint.stretch = constraint.data.stretch;
 					return;
 				case first:
 					constraint.mix += (constraint.data.mix - constraint.mix) * alpha;
+					constraint.softness += (constraint.data.softness - constraint.softness) * alpha;
 					constraint.bendDirection = constraint.data.bendDirection;
 					constraint.compress = constraint.data.compress;
 					constraint.stretch = constraint.data.stretch;
@@ -1381,6 +1404,8 @@ public class Animation {
 			if (time >= frames[frames.length - ENTRIES]) { // Time is after last frame.
 				if (blend == setup) {
 					constraint.mix = constraint.data.mix + (frames[frames.length + PREV_MIX] - constraint.data.mix) * alpha;
+					constraint.softness = constraint.data.softness
+						+ (frames[frames.length + PREV_SOFTNESS] - constraint.data.softness) * alpha;
 					if (direction == out) {
 						constraint.bendDirection = constraint.data.bendDirection;
 						constraint.compress = constraint.data.compress;
@@ -1392,6 +1417,7 @@ public class Animation {
 					}
 				} else {
 					constraint.mix += (frames[frames.length + PREV_MIX] - constraint.mix) * alpha;
+					constraint.softness += (frames[frames.length + PREV_SOFTNESS] - constraint.softness) * alpha;
 					if (direction == in) {
 						constraint.bendDirection = (int)frames[frames.length + PREV_BEND_DIRECTION];
 						constraint.compress = frames[frames.length + PREV_COMPRESS] != 0;
@@ -1404,11 +1430,14 @@ public class Animation {
 			// Interpolate between the previous frame and the current frame.
 			int frame = binarySearch(frames, time, ENTRIES);
 			float mix = frames[frame + PREV_MIX];
+			float softness = frames[frame + PREV_SOFTNESS];
 			float frameTime = frames[frame];
 			float percent = getCurvePercent(frame / ENTRIES - 1, 1 - (time - frameTime) / (frames[frame + PREV_TIME] - frameTime));
 
 			if (blend == setup) {
 				constraint.mix = constraint.data.mix + (mix + (frames[frame + MIX] - mix) * percent - constraint.data.mix) * alpha;
+				constraint.softness = constraint.data.softness
+					+ (softness + (frames[frame + SOFTNESS] - softness) * percent - constraint.data.softness) * alpha;
 				if (direction == out) {
 					constraint.bendDirection = constraint.data.bendDirection;
 					constraint.compress = constraint.data.compress;
@@ -1420,6 +1449,7 @@ public class Animation {
 				}
 			} else {
 				constraint.mix += (mix + (frames[frame + MIX] - mix) * percent - constraint.mix) * alpha;
+				constraint.softness += (softness + (frames[frame + SOFTNESS] - softness) * percent - constraint.softness) * alpha;
 				if (direction == in) {
 					constraint.bendDirection = (int)frames[frame + PREV_BEND_DIRECTION];
 					constraint.compress = frames[frame + PREV_COMPRESS] != 0;
@@ -1429,7 +1459,8 @@ public class Animation {
 		}
 	}
 
-	/** Changes a transform constraint's mixes. */
+	/** Changes a transform constraint's {@link TransformConstraint#getRotateMix()}, {@link TransformConstraint#getTranslateMix()},
+	 * {@link TransformConstraint#getScaleMix()}, and {@link TransformConstraint#getShearMix()}. */
 	static public class TransformConstraintTimeline extends CurveTimeline {
 		static public final int ENTRIES = 5;
 		static private final int PREV_TIME = -5, PREV_ROTATE = -4, PREV_TRANSLATE = -3, PREV_SCALE = -2, PREV_SHEAR = -1;
@@ -1476,6 +1507,7 @@ public class Animation {
 			MixDirection direction) {
 
 			TransformConstraint constraint = skeleton.transformConstraints.get(transformConstraintIndex);
+			if (!constraint.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				TransformConstraintData data = constraint.data;
@@ -1578,6 +1610,7 @@ public class Animation {
 			MixDirection direction) {
 
 			PathConstraint constraint = skeleton.pathConstraints.get(pathConstraintIndex);
+			if (!constraint.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
@@ -1624,6 +1657,7 @@ public class Animation {
 			MixDirection direction) {
 
 			PathConstraint constraint = skeleton.pathConstraints.get(pathConstraintIndex);
+			if (!constraint.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {
@@ -1657,7 +1691,8 @@ public class Animation {
 		}
 	}
 
-	/** Changes a path constraint's mixes. */
+	/** Changes a transform constraint's {@link PathConstraint#getRotateMix()} and
+	 * {@link TransformConstraint#getTranslateMix()}. */
 	static public class PathConstraintMixTimeline extends CurveTimeline {
 		static public final int ENTRIES = 3;
 		static private final int PREV_TIME = -3, PREV_ROTATE = -2, PREV_TRANSLATE = -1;
@@ -1703,6 +1738,7 @@ public class Animation {
 			MixDirection direction) {
 
 			PathConstraint constraint = skeleton.pathConstraints.get(pathConstraintIndex);
+			if (!constraint.active) return;
 			float[] frames = this.frames;
 			if (time < frames[0]) { // Time is before first frame.
 				switch (blend) {

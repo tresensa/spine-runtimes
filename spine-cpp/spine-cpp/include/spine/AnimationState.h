@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_AnimationState_h
@@ -37,6 +36,10 @@
 #include <spine/SpineObject.h>
 #include <spine/SpineString.h>
 #include <spine/HasRendererObject.h>
+
+#ifdef SPINE_USE_STD_FUNCTION
+#include <functional>
+#endif
 
 namespace spine {
     enum EventType {
@@ -56,8 +59,22 @@ namespace spine {
     class AnimationStateData;
     class Skeleton;
     class RotateTimeline;
-    
-    typedef void (*AnimationStateListener) (AnimationState* state, EventType type, TrackEntry* entry, Event* event);
+
+#ifdef SPINE_USE_STD_FUNCTION
+	typedef std::function<void (AnimationState* state, EventType type, TrackEntry* entry, Event* event)> AnimationStateListener;
+#else
+	typedef void (*AnimationStateListener) (AnimationState* state, EventType type, TrackEntry* entry, Event* event);
+#endif
+
+	/// Abstract class to inherit from to create a callback object
+	class SP_API AnimationStateListenerObject {
+	public:
+		AnimationStateListenerObject() { };
+		virtual ~AnimationStateListenerObject() { };
+	public:
+		/// The callback function to be called
+		virtual void callback(AnimationState* state, EventType type, TrackEntry* entry, Event* event) = 0;
+	};
     
     /// State for the playback of an animation
     class SP_API TrackEntry : public SpineObject, public HasRendererObject {
@@ -241,6 +258,8 @@ namespace spine {
         
         void setListener(AnimationStateListener listener);
 
+		void setListener(AnimationStateListenerObject* listener);
+
     private:
         Animation* _animation;
         
@@ -259,6 +278,7 @@ namespace spine {
         Vector<TrackEntry*> _timelineHoldMix;
         Vector<float> _timelinesRotation;
         AnimationStateListener _listener;
+		AnimationStateListenerObject* _listenerObject;
         
         void reset();
     };
@@ -396,6 +416,7 @@ namespace spine {
         void setTimeScale(float inValue);
 
         void setListener(AnimationStateListener listener);
+		void setListener(AnimationStateListenerObject* listener);
 
 		void disableQueue();
 		void enableQueue();
@@ -413,6 +434,7 @@ namespace spine {
         bool _animationsChanged;
 
         AnimationStateListener _listener;
+		AnimationStateListenerObject* _listenerObject;
         
         float _timeScale;
 
@@ -428,22 +450,24 @@ namespace spine {
         void queueEvents(TrackEntry* entry, float animationTime);
         
         /// Sets the active TrackEntry for a given track number.
-        void setCurrent(size_t index, TrackEntry* current, bool interrupt);
+        void setCurrent(size_t index, TrackEntry *current, bool interrupt);
 
         TrackEntry* expandToIndex(size_t index);
 
         /// Object-pooling version of new TrackEntry. Obtain an unused TrackEntry from the pool and clear/initialize its values.
         /// @param last May be NULL.
-        TrackEntry* newTrackEntry(size_t trackIndex, Animation* animation, bool loop, TrackEntry* last);
+        TrackEntry* newTrackEntry(size_t trackIndex, Animation *animation, bool loop, TrackEntry *last);
 
         /// Dispose all track entries queued after the given TrackEntry.
         void disposeNext(TrackEntry* entry);
 
         void animationsChanged();
 
-        void setTimelineModes(TrackEntry* entry);
+        void computeHold(TrackEntry *entry);
 
-        bool hasTimeline(TrackEntry* entry, int inId);
+        void computeNotLast(TrackEntry *entry);
+
+        bool hasTimeline(TrackEntry *entry, int inId);
     };
 }
 

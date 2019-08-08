@@ -1,35 +1,34 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package spine {
-	public class IkConstraint implements Constraint {
+	public class IkConstraint implements Updatable {
 		internal var _data : IkConstraintData;
 		public var bones : Vector.<Bone>;
 		public var target : Bone;
@@ -37,12 +36,15 @@ package spine {
 		public var compress: Boolean;
 		public var stretch: Boolean;
 		public var mix : Number;
+		public var softness : Number = 0;
+		public var active : Boolean;
 
 		public function IkConstraint(data : IkConstraintData, skeleton : Skeleton) {
 			if (data == null) throw new ArgumentError("data cannot be null.");
 			if (skeleton == null) throw new ArgumentError("skeleton cannot be null.");
 			_data = data;
 			mix = data.mix;
+			softness = data.softness;
 			bendDirection = data.bendDirection;
 			compress = data.compress;
 			stretch = data.stretch;
@@ -51,6 +53,10 @@ package spine {
 			for each (var boneData : BoneData in data.bones)
 				bones[bones.length] = skeleton.findBone(boneData.name);
 			target = skeleton.findBone(data.target._name);
+		}
+		
+		public function isActive() : Boolean {
+			return active;
 		}
 
 		public function apply() : void {
@@ -63,13 +69,9 @@ package spine {
 					apply1(bones[0], target.worldX, target.worldY, compress, stretch, _data.uniform, mix);
 					break;
 				case 2:
-					apply2(bones[0], bones[1], target.worldX, target.worldY, bendDirection, stretch, mix);
+					apply2(bones[0], bones[1], target.worldX, target.worldY, bendDirection, stretch, softness, mix);
 					break;
 			}
-		}
-
-		public function getOrder() : Number {
-			return _data.order;
 		}
 
 		public function get data() : IkConstraintData {
@@ -77,7 +79,7 @@ package spine {
 		}
 
 		public function toString() : String {
-			return _data._name;
+			return _data.name;
 		}
 
 		/** Adjusts the bone rotation so the tip is as close to the target position as possible. The target is specified in the world
@@ -109,7 +111,7 @@ package spine {
 		/** Adjusts the parent and child bone rotations so the tip of the child is as close to the target position as possible. The
 		 * target is specified in the world coordinate system.
 		 * @param child Any descendant bone of the parent. */
-		static public function apply2(parent : Bone, child : Bone, targetX : Number, targetY : Number, bendDir : int, stretch : Boolean, alpha : Number) : void {
+		static public function apply2(parent : Bone, child : Bone, targetX : Number, targetY : Number, bendDir : int, stretch : Boolean, softness: Number, alpha : Number) : void {
 			if (alpha == 0) {
 				child.updateWorldTransform();
 				return;
@@ -151,12 +153,29 @@ package spine {
 			b = pp.b;
 			c = pp.c;
 			d = pp.d;
-			var id : Number = 1 / (a * d - b * c), x : Number = targetX - pp.worldX, y : Number = targetY - pp.worldY;
-			var tx : Number = (x * d - y * b) * id - px, ty : Number = (y * a - x * c) * id - py, dd : Number = tx * tx + ty * ty;
-			x = cwx - pp.worldX;
-			y = cwy - pp.worldY;
+			var id : Number = 1 / (a * d - b * c), x : Number = cwx - pp.worldX, y : Number = cwy - pp.worldY;
 			var dx : Number = (x * d - y * b) * id - px, dy : Number = (y * a - x * c) * id - py;
 			var l1 : Number = Math.sqrt(dx * dx + dy * dy), l2 : Number = child.data.length * csx, a1 : Number, a2 : Number;
+			if (l1 < 0.0001) {
+				apply1(parent, targetX, targetY, false, stretch, false, alpha);
+				child.updateWorldTransformWith(cx, cy, 0, child.ascaleX, child.ascaleY, child.ashearX, child.ashearY);
+				return;
+			}
+			x = targetX - pp.worldX;
+			y = targetY - pp.worldY;
+			var tx : Number = (x * d - y * b) * id - px, ty : Number = (y * a - x * c) * id - py;
+			var dd : Number = tx * tx + ty * ty;
+			if (softness != 0) {
+				softness *= psx * (csx + 1) / 2;
+				var td : Number = Math.sqrt(dd), sd : Number = td - l1 - l2 * psx + softness;
+				if (sd > 0) {
+					var p : Number = Math.min(1, sd / (softness * 2)) - 1;
+					p = (sd - softness * (1 - p * p)) / td;
+					tx -= p * tx;
+					ty -= p * ty;
+					dd = tx * tx + ty * ty;
+				}
+			}
 			outer:
 			if (u) {
 				l2 *= psx;
@@ -165,7 +184,7 @@ package spine {
 					cos = -1;
 				else if (cos > 1) {
 					cos = 1;
-					if (stretch && l1 + l2 > 0.0001) sx *= (Math.sqrt(dd) / (l1 + l2) - 1) * alpha + 1;
+					if (stretch) sx *= (Math.sqrt(dd) / (l1 + l2) - 1) * alpha + 1;
 				}
 				a2 = Math.acos(cos) * bendDir;
 				a = l1 + l2 * cos;

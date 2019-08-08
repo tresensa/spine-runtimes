@@ -1,40 +1,39 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package com.esotericsoftware.spine.attachments;
 
+import static com.esotericsoftware.spine.utils.SpineUtils.*;
+
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-
-import com.esotericsoftware.spine.Animation.DeformTimeline;
 
 /** An attachment that displays a textured mesh. A mesh has hull vertices and internal vertices within the hull. Holes are not
  * supported. Each vertex has UVs (texture coordinates) and triangles are used to map an image on to the mesh.
@@ -48,7 +47,6 @@ public class MeshAttachment extends VertexAttachment {
 	private final Color color = new Color(1, 1, 1, 1);
 	private int hullLength;
 	private MeshAttachment parentMesh;
-	private boolean inheritDeform;
 
 	// Nonessential.
 	private short[] edges;
@@ -74,23 +72,47 @@ public class MeshAttachment extends VertexAttachment {
 		float[] regionUVs = this.regionUVs;
 		if (this.uvs == null || this.uvs.length != regionUVs.length) this.uvs = new float[regionUVs.length];
 		float[] uvs = this.uvs;
+		int n = uvs.length;
 		float u, v, width, height;
 		if (region instanceof AtlasRegion) {
+			u = region.getU();
+			v = region.getV();
 			AtlasRegion region = (AtlasRegion)this.region;
 			float textureWidth = region.getTexture().getWidth(), textureHeight = region.getTexture().getHeight();
-			if (region.rotate) {
-				u = region.getU() - (region.originalHeight - region.offsetY - region.packedWidth) / textureWidth;
-				v = region.getV() - (region.originalWidth - region.offsetX - region.packedHeight) / textureHeight;
+			switch (region.degrees) {
+			case 90:
+				u -= (region.originalHeight - region.offsetY - region.packedWidth) / textureWidth;
+				v -= (region.originalWidth - region.offsetX - region.packedHeight) / textureHeight;
 				width = region.originalHeight / textureWidth;
 				height = region.originalWidth / textureHeight;
-				for (int i = 0, n = uvs.length; i < n; i += 2) {
+				for (int i = 0; i < n; i += 2) {
 					uvs[i] = u + regionUVs[i + 1] * width;
-					uvs[i + 1] = v + height - regionUVs[i] * height;
+					uvs[i + 1] = v + (1 - regionUVs[i]) * height;
+				}
+				return;
+			case 180:
+				u -= (region.originalWidth - region.offsetX - region.packedWidth) / textureWidth;
+				v -= region.offsetY / textureHeight;
+				width = region.originalWidth / textureWidth;
+				height = region.originalHeight / textureHeight;
+				for (int i = 0; i < n; i += 2) {
+					uvs[i] = u + (1 - regionUVs[i]) * width;
+					uvs[i + 1] = v + (1 - regionUVs[i + 1]) * height;
+				}
+				return;
+			case 270:
+				u -= region.offsetY / textureWidth;
+				v -= region.offsetX / textureHeight;
+				width = region.originalHeight / textureWidth;
+				height = region.originalWidth / textureHeight;
+				for (int i = 0; i < n; i += 2) {
+					uvs[i] = u + (1 - regionUVs[i + 1]) * width;
+					uvs[i + 1] = v + regionUVs[i] * height;
 				}
 				return;
 			}
-			u = region.getU() - region.offsetX / textureWidth;
-			v = region.getV() - (region.originalHeight - region.offsetY - region.packedHeight) / textureHeight;
+			u -= region.offsetX / textureWidth;
+			v -= (region.originalHeight - region.offsetY - region.packedHeight) / textureHeight;
 			width = region.originalWidth / textureWidth;
 			height = region.originalHeight / textureHeight;
 		} else if (region == null) {
@@ -102,16 +124,10 @@ public class MeshAttachment extends VertexAttachment {
 			width = region.getU2() - u;
 			height = region.getV2() - v;
 		}
-		for (int i = 0, n = uvs.length; i < n; i += 2) {
+		for (int i = 0; i < n; i += 2) {
 			uvs[i] = u + regionUVs[i] * width;
 			uvs[i + 1] = v + regionUVs[i + 1] * height;
 		}
-	}
-
-	/** Returns true if the <code>sourceAttachment</code> is this mesh, else returns true if {@link #inheritDeform} is true and the
-	 * the <code>sourceAttachment</code> is the {@link #parentMesh}. */
-	public boolean applyDeform (VertexAttachment sourceAttachment) {
-		return this == sourceAttachment || (inheritDeform && parentMesh == sourceAttachment);
 	}
 
 	/** Triplets of vertex indices which describe the mesh's triangulation. */
@@ -218,15 +234,42 @@ public class MeshAttachment extends VertexAttachment {
 		}
 	}
 
-	/** When this is a linked mesh (see {@link #parentMesh}), if true, any {@link DeformTimeline} for the {@link #parentMesh} is
-	 * also applied to this mesh. If false, this linked mesh may have its own deform timelines.
-	 * <p>
-	 * See {@link #applyDeform(VertexAttachment)}. */
-	public boolean getInheritDeform () {
-		return inheritDeform;
+	public Attachment copy () {
+		if (parentMesh != null) return newLinkedMesh();
+
+		MeshAttachment copy = new MeshAttachment(name);
+		copy.region = region;
+		copy.path = path;
+		copy.color.set(color);
+
+		copyTo(copy);
+		copy.regionUVs = new float[regionUVs.length];
+		arraycopy(regionUVs, 0, copy.regionUVs, 0, regionUVs.length);
+		copy.uvs = new float[uvs.length];
+		arraycopy(uvs, 0, copy.uvs, 0, uvs.length);
+		copy.triangles = new short[triangles.length];
+		arraycopy(triangles, 0, copy.triangles, 0, triangles.length);
+		copy.hullLength = hullLength;
+
+		// Nonessential.
+		if (edges != null) {
+			copy.edges = new short[edges.length];
+			arraycopy(edges, 0, copy.edges, 0, edges.length);
+		}
+		copy.width = width;
+		copy.height = height;
+		return copy;
 	}
 
-	public void setInheritDeform (boolean inheritDeform) {
-		this.inheritDeform = inheritDeform;
+	/** Returns a new mesh with the {@link #parentMesh} set to this mesh's parent mesh, if any, else to this mesh. **/
+	public MeshAttachment newLinkedMesh () {
+		MeshAttachment mesh = new MeshAttachment(name);
+		mesh.region = region;
+		mesh.path = path;
+		mesh.color.set(color);
+		mesh.deformAttachment = deformAttachment;
+		mesh.setParentMesh(parentMesh != null ? parentMesh : this);
+		mesh.updateUVs();
+		return mesh;
 	}
 }

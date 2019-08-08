@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 using System;
@@ -34,15 +33,248 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 namespace Spine {
+
+	public abstract class Screen {
+		protected Example game;
+		protected SkeletonRenderer skeletonRenderer;
+		private MouseState lastMouseState;
+		protected Boolean mouseClicked = false;
+
+		public Screen(Example game) {
+			this.game = game;
+			skeletonRenderer = new SkeletonRenderer(game.GraphicsDevice);
+			skeletonRenderer.PremultipliedAlpha = false;
+		}
+
+		public void UpdateInput() {
+			MouseState state = Mouse.GetState();
+			mouseClicked = lastMouseState.LeftButton == ButtonState.Pressed && state.LeftButton == ButtonState.Released;
+			lastMouseState = state;
+		}
+
+		public abstract void Render(float deltaTime);
+	}
+
+	/// <summary>
+	/// The raptor screen shows basic loading and rendering of a Spine skeleton.
+	/// </summary>
+	internal class RaptorScreen : Screen {
+		Atlas atlas;
+		Skeleton skeleton;
+		AnimationState state;
+
+		public RaptorScreen(Example game) : base (game) {
+			// Load the texture atlas
+			atlas = new Atlas("data/raptor.atlas", new XnaTextureLoader(game.GraphicsDevice));
+
+			// Load the .json file using a scale of 0.5
+			SkeletonJson json = new SkeletonJson(atlas);
+			json.Scale = 0.5f;
+			SkeletonData skeletonData = json.ReadSkeletonData("data/raptor-pro.json");
+
+			// Create the skeleton and animation state
+			skeleton = new Skeleton(skeletonData);
+			AnimationStateData stateData = new AnimationStateData(skeleton.Data);
+			state = new AnimationState(stateData);
+
+			// Center within the viewport
+			skeleton.X = game.GraphicsDevice.Viewport.Width / 2;
+			skeleton.Y = game.GraphicsDevice.Viewport.Height;
+
+			// Set the "walk" animation on track one and let it loop forever
+			state.SetAnimation(0, "walk", true);
+		}
+
+		public override void Render(float deltaTime) {
+			// Update the animation state and apply the animations
+			// to the skeleton
+			state.Update(deltaTime);
+			state.Apply(skeleton);
+
+			// Update the transformations of bones and other parts of the skeleton
+			skeleton.UpdateWorldTransform();
+
+			// Clear the screen and setup the projection matrix of the skeleton renderer
+			game.GraphicsDevice.Clear(Color.Black);
+			((BasicEffect)skeletonRenderer.Effect).Projection = Matrix.CreateOrthographicOffCenter(0, game.GraphicsDevice.Viewport.Width, game.GraphicsDevice.Viewport.Height, 0, 1, 0);
+
+			// Draw the skeletons
+			skeletonRenderer.Begin();
+			skeletonRenderer.Draw(skeleton);
+			skeletonRenderer.End();
+
+			// Check if the mouse button was clicked and switch scene
+			if (mouseClicked) game.currentScreen = new TankScreen(game);
+		}
+	}
+
+	/// <summary>
+	/// The tank screen shows how to enable two color tinting.
+	/// </summary>
+	internal class TankScreen : Screen {
+		Atlas atlas;
+		Skeleton skeleton;
+		AnimationState state;
+
+		public TankScreen(Example game) : base(game) {
+			// Instantiate and configure the two color tinting effect and
+			// assign it to the skeleton renderer
+			var twoColorTintEffect = game.Content.Load<Effect>("Content\\SpineEffect");
+			twoColorTintEffect.Parameters["World"].SetValue(Matrix.Identity);
+			twoColorTintEffect.Parameters["View"].SetValue(Matrix.CreateLookAt(new Vector3(0.0f, 0.0f, 1.0f), Vector3.Zero, Vector3.Up));
+			skeletonRenderer.Effect = twoColorTintEffect;
+
+			// The remaining code loads the atlas and skeleton data as in the raptor screen
+			atlas = new Atlas("data/tank.atlas", new XnaTextureLoader(game.GraphicsDevice));
+			SkeletonJson json = new SkeletonJson(atlas);
+			json.Scale = 0.25f;
+			SkeletonData skeletonData = json.ReadSkeletonData("data/tank-pro.json");
+
+			skeleton = new Skeleton(skeletonData);
+			AnimationStateData stateData = new AnimationStateData(skeleton.Data);
+			state = new AnimationState(stateData);
+
+			skeleton.X = game.GraphicsDevice.Viewport.Width / 2 + 200;
+			skeleton.Y = game.GraphicsDevice.Viewport.Height;
+
+			state.SetAnimation(0, "shoot", true);
+		}
+
+		public override void Render(float deltaTime) {
+			state.Update(deltaTime);
+			state.Apply(skeleton);
+
+			skeleton.UpdateWorldTransform();
+
+			// Clear the screen and setup the projection matrix of the custom effect through the
+			// "Projection" parameter.
+			game.GraphicsDevice.Clear(Color.Black);
+			skeletonRenderer.Effect.Parameters["Projection"].SetValue(Matrix.CreateOrthographicOffCenter(0, game.GraphicsDevice.Viewport.Width, game.GraphicsDevice.Viewport.Height, 0, 1, 0));
+
+			skeletonRenderer.Begin();
+			skeletonRenderer.Draw(skeleton);
+			skeletonRenderer.End();
+
+			if (mouseClicked) game.currentScreen = new SpineboyScreen(game);
+		}
+	}
+
+	/// <summary>
+	/// The Spineboy screen shows how to queue up multiple animations via animation state,
+	/// set the default mix time to smoothly transition between animations, and load a
+	/// skeleton from a binary .skel file.
+	/// </summary>
+	internal class SpineboyScreen : Screen {
+		Atlas atlas;
+		Skeleton skeleton;
+		AnimationState state;
+
+		public SpineboyScreen(Example game) : base(game) {
+			atlas = new Atlas("data/spineboy.atlas", new XnaTextureLoader(game.GraphicsDevice));
+
+			SkeletonBinary binary = new SkeletonBinary(atlas);
+			binary.Scale = 0.5f;
+			SkeletonData skeletonData = binary.ReadSkeletonData("data/spineboy-pro.skel");
+
+			skeleton = new Skeleton(skeletonData);
+			AnimationStateData stateData = new AnimationStateData(skeleton.Data);
+			state = new AnimationState(stateData);
+
+			skeleton.X = game.GraphicsDevice.Viewport.Width / 2;
+			skeleton.Y = game.GraphicsDevice.Viewport.Height;
+
+			// We want 0.2 seconds of mixing time when transitioning from
+			// any animation to any other animation.
+			stateData.DefaultMix = 0.2f;
+
+			// Set the "walk" animation on track one and let it loop forever
+			state.SetAnimation(0, "walk", true);
+
+			// Queue another animation after 2 seconds to let Spineboy jump
+			state.AddAnimation(0, "jump", false, 2);
+
+			// After the jump is complete, let Spineboy walk
+			state.AddAnimation(0, "run", true, 0);
+		}
+
+		public override void Render(float deltaTime) {
+			state.Update(deltaTime);
+			state.Apply(skeleton);
+			skeleton.UpdateWorldTransform();
+
+			game.GraphicsDevice.Clear(Color.Black);
+			((BasicEffect)skeletonRenderer.Effect).Projection = Matrix.CreateOrthographicOffCenter(0, game.GraphicsDevice.Viewport.Width, game.GraphicsDevice.Viewport.Height, 0, 1, 0);
+
+			skeletonRenderer.Begin();
+			skeletonRenderer.Draw(skeleton);
+			skeletonRenderer.End();
+
+			if (mouseClicked) game.currentScreen = new MixAndMatchScreen(game);
+		}
+	}
+
+	/// <summary>
+	/// The mix-and-match screen demonstrates how to create and apply a skin
+	/// composed of other skins. This method can be used to create customizable
+	/// avatar systems.
+	/// </summary>
+	internal class MixAndMatchScreen : Screen {
+		Atlas atlas;
+		Skeleton skeleton;
+		AnimationState state;
+
+		public MixAndMatchScreen(Example game) : base(game) {
+			atlas = new Atlas("data/mix-and-match.atlas", new XnaTextureLoader(game.GraphicsDevice));
+
+			SkeletonJson json = new SkeletonJson(atlas);
+			json.Scale = 0.5f;
+			SkeletonData skeletonData = json.ReadSkeletonData("data/mix-and-match-pro.json");
+
+			skeleton = new Skeleton(skeletonData);
+			AnimationStateData stateData = new AnimationStateData(skeleton.Data);
+			state = new AnimationState(stateData);
+
+			skeleton.X = game.GraphicsDevice.Viewport.Width / 2;
+			skeleton.Y = game.GraphicsDevice.Viewport.Height;
+
+			state.SetAnimation(0, "dance", true);
+
+			// Create a new skin, by mixing and matching other skins
+			// that fit together. Items making up the girl are individual
+			// skins. Using the skin API, a new skin is created which is
+			// a combination of all these individual item skins.
+			var mixAndMatchSkin = new Spine.Skin("custom-girl");
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("skin-base"));
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("nose/short"));
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("eyelids/girly"));
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("eyes/violet"));
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("hair/brown"));
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("clothes/hoodie-orange"));
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("legs/pants-jeans"));
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("accessories/bag"));
+			mixAndMatchSkin.AddSkin(skeletonData.FindSkin("accessories/hat-red-yellow"));
+			skeleton.SetSkin(mixAndMatchSkin);
+		}
+
+		public override void Render(float deltaTime) {
+			state.Update(deltaTime);
+			state.Apply(skeleton);
+			skeleton.UpdateWorldTransform();
+
+			game.GraphicsDevice.Clear(Color.Black);
+			((BasicEffect)skeletonRenderer.Effect).Projection = Matrix.CreateOrthographicOffCenter(0, game.GraphicsDevice.Viewport.Width, game.GraphicsDevice.Viewport.Height, 0, 1, 0);
+
+			skeletonRenderer.Begin();
+			skeletonRenderer.Draw(skeleton);
+			skeletonRenderer.End();
+
+			if (mouseClicked) game.currentScreen = new RaptorScreen(game);
+		}
+	}
+
 	public class Example : Microsoft.Xna.Framework.Game {
 		GraphicsDeviceManager graphics;
-		SkeletonRenderer skeletonRenderer;
-		Skeleton skeleton;
-		Slot headSlot;
-		AnimationState state;
-		SkeletonBounds bounds = new SkeletonBounds();
-
-		private string assetsFolder = "data/";
+		public Screen currentScreen;
 
 		public Example() {
 			IsMouseVisible = true;
@@ -54,138 +286,15 @@ namespace Spine {
 		}
 
 		protected override void LoadContent() {
-			// Two color tint effect, comment line 80 to disable
-			var spineEffect = Content.Load<Effect>("Content\\SpineEffect");
-			spineEffect.Parameters["World"].SetValue(Matrix.Identity);
-			spineEffect.Parameters["View"].SetValue(Matrix.CreateLookAt(new Vector3(0.0f, 0.0f, 1.0f), Vector3.Zero, Vector3.Up));
-
-			skeletonRenderer = new SkeletonRenderer(GraphicsDevice);
-			skeletonRenderer.PremultipliedAlpha = false;
-			skeletonRenderer.Effect = spineEffect;
-
-			// String name = "spineboy-ess";
-			// String name = "goblins-pro";
-			// String name = "raptor-pro";
-			// String name = "tank-pro";
-			String name = "coin-pro";
-			String atlasName = name.Replace("-pro", "").Replace("-ess", "");
-			bool binaryData = false;
-
-			Atlas atlas = new Atlas(assetsFolder + atlasName + ".atlas", new XnaTextureLoader(GraphicsDevice));
-
-			float scale = 1;
-			if (name == "spineboy-ess") scale = 0.6f;
-			if (name == "raptor-pro") scale = 0.5f;
-			if (name == "tank-pro") scale = 0.3f;
-			if (name == "coin-pro") scale = 1;
-
-			SkeletonData skeletonData;
-			if (binaryData) {
-				SkeletonBinary binary = new SkeletonBinary(atlas);
-				binary.Scale = scale;
-				skeletonData = binary.ReadSkeletonData(assetsFolder + name + ".skel");
-			}
-			else {
-				SkeletonJson json = new SkeletonJson(atlas);
-				json.Scale = scale;
-				skeletonData = json.ReadSkeletonData(assetsFolder + name + ".json");
-			}
-			skeleton = new Skeleton(skeletonData);
-			if (name == "goblins-pro") skeleton.SetSkin("goblin");
-
-			// Define mixing between animations.
-			AnimationStateData stateData = new AnimationStateData(skeleton.Data);
-			state = new AnimationState(stateData);
-
-			if (name == "spineboy-ess") {
-				skeleton.SetAttachment("head-bb", "head"); // Activate the head BoundingBoxAttachment.
-
-				stateData.SetMix("run", "jump", 0.2f);
-				stateData.SetMix("jump", "run", 0.4f);
-
-				// Event handling for all animations.
-				state.Start += Start;
-				state.End += End;
-				state.Complete += Complete;
-				state.Event += Event;
-
-				state.SetAnimation(0, "test", false);
-				TrackEntry entry = state.AddAnimation(0, "jump", false, 0);
-				entry.End += End; // Event handling for queued animations.
-				state.AddAnimation(0, "run", true, 0);
-			}
-			else if (name == "raptor-pro") {
-				state.SetAnimation(0, "walk", true);
-				state.AddAnimation(1, "gungrab", false, 2);
-			}
-			else if (name == "coin-pro") {
-				state.SetAnimation(0, "rotate", true);
-			}
-			else if (name == "tank-pro") {
-				state.SetAnimation(0, "drive", true);
-			}
-			else {
-				state.SetAnimation(0, "walk", true);
-			}
-
-			skeleton.X = 400 + (name == "tank-pro" ? 300 : 0);
-			skeleton.Y = GraphicsDevice.Viewport.Height;
-			skeleton.UpdateWorldTransform();
-
-			headSlot = skeleton.FindSlot("head");
+			currentScreen = new MixAndMatchScreen(this);
 		}
 
 		protected override void Update(GameTime gameTime) {
-			base.Update(gameTime);
+			currentScreen.UpdateInput();
 		}
 
 		protected override void Draw(GameTime gameTime) {
-			GraphicsDevice.Clear(Color.Black);
-
-			state.Update(gameTime.ElapsedGameTime.Milliseconds / 1000f);
-			state.Apply(skeleton);
-			skeleton.UpdateWorldTransform();
-			if (skeletonRenderer.Effect is BasicEffect) {
-				((BasicEffect)skeletonRenderer.Effect).Projection = Matrix.CreateOrthographicOffCenter(0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height, 0, 1, 0);
-			}
-			else {
-				skeletonRenderer.Effect.Parameters["Projection"].SetValue(Matrix.CreateOrthographicOffCenter(0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height, 0, 1, 0));
-			}
-			skeletonRenderer.Begin();
-			skeletonRenderer.Draw(skeleton);
-			skeletonRenderer.End();
-
-			bounds.Update(skeleton, true);
-			MouseState mouse = Mouse.GetState();
-			if (headSlot != null) {
-				headSlot.G = 1;
-				headSlot.B = 1;
-				if (bounds.AabbContainsPoint(mouse.X, mouse.Y)) {
-					BoundingBoxAttachment hit = bounds.ContainsPoint(mouse.X, mouse.Y);
-					if (hit != null) {
-						headSlot.G = 0;
-						headSlot.B = 0;
-					}
-				}
-			}
-
-			base.Draw(gameTime);
-		}
-
-		public void Start(TrackEntry entry) {
-			Console.WriteLine(entry + ": start");
-		}
-
-		public void End(TrackEntry entry) {
-			Console.WriteLine(entry + ": end");
-		}
-
-		public void Complete(TrackEntry entry) {
-			Console.WriteLine(entry + ": complete ");
-		}
-
-		public void Event(TrackEntry entry, Event e) {
-			Console.WriteLine(entry + ": event " + e);
+			currentScreen.Render(gameTime.ElapsedGameTime.Milliseconds / 1000.0f);
 		}
 	}
 }

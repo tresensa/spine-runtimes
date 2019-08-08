@@ -1,31 +1,30 @@
 -------------------------------------------------------------------------------
--- Spine Runtimes Software License v2.5
+-- Spine Runtimes License Agreement
+-- Last updated May 1, 2019. Replaces all prior versions.
 --
--- Copyright (c) 2013-2016, Esoteric Software
--- All rights reserved.
+-- Copyright (c) 2013-2019, Esoteric Software LLC
 --
--- You are granted a perpetual, non-exclusive, non-sublicensable, and
--- non-transferable license to use, install, execute, and perform the Spine
--- Runtimes software and derivative works solely for personal or internal
--- use. Without the written permission of Esoteric Software (see Section 2 of
--- the Spine Software License Agreement), you may not (a) modify, translate,
--- adapt, or develop new applications using the Spine Runtimes or otherwise
--- create derivative works or improvements of the Spine Runtimes or (b) remove,
--- delete, alter, or obscure any trademarks or any copyright, trademark, patent,
--- or other intellectual property or proprietary rights notices on or in the
--- Software, including any copy thereof. Redistributions in binary or source
--- form must include this license and terms.
+-- Integration of the Spine Runtimes into software or otherwise creating
+-- derivative works of the Spine Runtimes is permitted under the terms and
+-- conditions of Section 2 of the Spine Editor License Agreement:
+-- http://esotericsoftware.com/spine-editor-license
 --
--- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
--- IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
--- MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
--- EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
--- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
--- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
--- USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
--- IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
--- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
--- POSSIBILITY OF SUCH DAMAGE.
+-- Otherwise, it is permitted to integrate the Spine Runtimes into software
+-- or otherwise create derivative works of the Spine Runtimes (collectively,
+-- "Products"), provided that each user of the Products must obtain their own
+-- Spine Editor license and redistribution of the Products in any form must
+-- include this license and copyright notice.
+--
+-- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+-- OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+-- OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+-- NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+-- INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+-- BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+-- INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+-- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+-- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+-- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -------------------------------------------------------------------------------
 
 local spine = {}
@@ -162,66 +161,70 @@ function spine.Skeleton:updateWorldTransform()
 		local uvs = nil
 		local numVertices = 0
 		local indices = nil
-		if attachment then
-			if attachment.type == spine.AttachmentType.region then
-				numVertices = 4
-				vertices = worldVertices
-				attachment:computeWorldVertices(slot.bone, vertices, 0, 2)
-				uvs = attachment.uvs
-				indices = QUAD_TRIANGLES
-				texture = attachment.region.renderObject.texture				
-				blendMode = toCoronaBlendMode(slot.data.blendMode)
-			elseif attachment.type == spine.AttachmentType.mesh then
-				numVertices = attachment.worldVerticesLength / 2
-				vertices = worldVertices
-				attachment:computeWorldVertices(slot, 0, attachment.worldVerticesLength, vertices, 0, 2)
-				uvs = attachment.uvs
-				indices = attachment.triangles
-				texture = attachment.region.renderObject.texture
-				blendMode = toCoronaBlendMode(slot.data.blendMode)
-			elseif attachment.type == spine.AttachmentType.clipping then
-				self.clipper:clipStart(slot, attachment)
-			end
+    
+    if slot.bone.active then 
+    
+      if attachment then
+        if attachment.type == spine.AttachmentType.region then
+          numVertices = 4
+          vertices = worldVertices
+          attachment:computeWorldVertices(slot.bone, vertices, 0, 2)
+          uvs = attachment.uvs
+          indices = QUAD_TRIANGLES
+          texture = attachment.region.renderObject.texture				
+          blendMode = toCoronaBlendMode(slot.data.blendMode)
+        elseif attachment.type == spine.AttachmentType.mesh then
+          numVertices = attachment.worldVerticesLength / 2
+          vertices = worldVertices
+          attachment:computeWorldVertices(slot, 0, attachment.worldVerticesLength, vertices, 0, 2)
+          uvs = attachment.uvs
+          indices = attachment.triangles
+          texture = attachment.region.renderObject.texture
+          blendMode = toCoronaBlendMode(slot.data.blendMode)
+        elseif attachment.type == spine.AttachmentType.clipping then
+          self.clipper:clipStart(slot, attachment)
+        end
 
-			if texture and vertices and indices then
-				local skeleton = slot.bone.skeleton
-				local skeletonColor = skeleton.color
-				local slotColor = slot.color
-				local attachmentColor = attachment.color
-				local alpha = skeletonColor.a * slotColor.a * attachmentColor.a
-				local multiplier = alpha
-				if premultipliedAlpha then multiplier = 1 end
-				color:set(skeletonColor.r * slotColor.r * attachmentColor.r * multiplier,
-									skeletonColor.g * slotColor.g * attachmentColor.g * multiplier,
-									skeletonColor.b * slotColor.b * attachmentColor.b * multiplier,
-									alpha)
-				
-				if not lastTexture then lastTexture = texture end
-				if lastColor.r == -1 then lastColor:setFrom(color) end
-				if not lastBlendMode then lastBlendMode = blendMode end
+        if texture and vertices and indices then
+          local skeleton = slot.bone.skeleton
+          local skeletonColor = skeleton.color
+          local slotColor = slot.color
+          local attachmentColor = attachment.color
+          local alpha = skeletonColor.a * slotColor.a * attachmentColor.a
+          local multiplier = alpha
+          if premultipliedAlpha then multiplier = 1 end
+          color:set(skeletonColor.r * slotColor.r * attachmentColor.r * multiplier,
+                    skeletonColor.g * slotColor.g * attachmentColor.g * multiplier,
+                    skeletonColor.b * slotColor.b * attachmentColor.b * multiplier,
+                    alpha)
+          
+          if not lastTexture then lastTexture = texture end
+          if lastColor.r == -1 then lastColor:setFrom(color) end
+          if not lastBlendMode then lastBlendMode = blendMode end
 
-				if (texture ~= lastTexture or not colorEquals(color, lastColor) or blendMode ~= lastBlendMode) then
-					self:flush(groupVertices, groupUvs, groupIndices, lastTexture, lastColor, lastBlendMode, drawingGroup)
-					lastTexture = texture
-					lastColor:setFrom(color)
-					lastBlendMode = blendMode
-					groupVertices = {}
-					groupUvs = {}
-					groupIndices = {}
-				end
-				
-				if self.clipper:isClipping() then
-					self.clipper:clipTriangles(vertices, uvs, indices, #indices)
-					vertices = self.clipper.clippedVertices
-					numVertices = #vertices / 2
-					uvs = self.clipper.clippedUVs
-					indices = self.clipper.clippedTriangles
-				end
+          if (texture ~= lastTexture or not colorEquals(color, lastColor) or blendMode ~= lastBlendMode) then
+            self:flush(groupVertices, groupUvs, groupIndices, lastTexture, lastColor, lastBlendMode, drawingGroup)
+            lastTexture = texture
+            lastColor:setFrom(color)
+            lastBlendMode = blendMode
+            groupVertices = {}
+            groupUvs = {}
+            groupIndices = {}
+          end
+          
+          if self.clipper:isClipping() then
+            self.clipper:clipTriangles(vertices, uvs, indices, #indices)
+            vertices = self.clipper.clippedVertices
+            numVertices = #vertices / 2
+            uvs = self.clipper.clippedUVs
+            indices = self.clipper.clippedTriangles
+          end
 
-				self:batch(vertices, uvs, numVertices, indices, groupVertices, groupUvs, groupIndices)
-			end
-			
-			self.clipper:clipEnd(slot)
+          self:batch(vertices, uvs, numVertices, indices, groupVertices, groupUvs, groupIndices)
+        end
+        
+        self.clipper:clipEnd(slot)
+      end
 		end
 	end
 

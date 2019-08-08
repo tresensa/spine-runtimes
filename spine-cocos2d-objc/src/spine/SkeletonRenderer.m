@@ -1,31 +1,30 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #import <spine/SkeletonRenderer.h>
@@ -196,6 +195,7 @@ static bool handlerQueued = false;
 	for (int i = 0, n = _skeleton->slotsCount; i < n; i++) {
 		spSlot* slot = _skeleton->drawOrder[i];
 		if (!slot->attachment) continue;
+		if (!slot->bone->active) continue;
 		CCTexture *texture = 0;
 		switch (slot->attachment->type) {
 		case SP_ATTACHMENT_REGION: {
@@ -270,10 +270,21 @@ static bool handlerQueued = false;
 				b *= _skeleton->color.b * slot->color.b;
 			}
 			self.texture = texture;
-			CGSize size = texture.contentSize;
-			GLKVector2 center = GLKVector2Make(size.width / 2.0, size.height / 2.0);
-			GLKVector2 extents = GLKVector2Make(size.width / 2.0, size.height / 2.0);
-			if (_skipVisibilityCheck || CCRenderCheckVisbility(transform, center, extents)) {
+			bool isVisible = true;
+			if (!_skipVisibilityCheck) {
+				float minX = FLT_MAX, minY = FLT_MAX, maxX = FLT_MIN, maxY = FLT_MIN;
+				for (int i = 0; i < verticesCount * 2; i+=2) {
+					minX = MIN(vertices[i], minX);
+					maxX = MAX(vertices[i], maxX);
+					minY = MIN(vertices[i+1], minY);
+					maxY = MAX(vertices[i+1], maxY);
+				}
+				GLKVector2 center = GLKVector2Make(minX + (maxX - minX) / 2, minY + (maxY - minY) / 2);
+				GLKVector2 extents = GLKVector2Make((maxX - minX) / 2, (maxY - minY) / 2);
+				isVisible = CCRenderCheckVisbility(transform, center, extents);
+			}
+			
+			if (isVisible) {
 				
 				if (spSkeletonClipping_isClipping(_clipper)) {
 					spSkeletonClipping_clipTriangles(_clipper, vertices, verticesCount, triangles, trianglesCount, uvs, 2);
@@ -399,6 +410,7 @@ static bool handlerQueued = false;
 		CGPoint points[4];
 		for (int i = 0, n = _skeleton->slotsCount; i < n; i++) {
 			spSlot* slot = _skeleton->drawOrder[i];
+			if (!slot->bone->active) continue;
 			if (!slot->attachment || slot->attachment->type != SP_ATTACHMENT_REGION) continue;
 			spRegionAttachment* attachment = (spRegionAttachment*)slot->attachment;
 			spRegionAttachment_computeWorldVertices(attachment, slot->bone, _worldVertices, 0, 2);
@@ -413,6 +425,7 @@ static bool handlerQueued = false;
 		// Bone lengths.
 		for (int i = 0, n = _skeleton->bonesCount; i < n; i++) {
 			spBone *bone = _skeleton->bones[i];
+			if (!bone->active) continue;
 			float x = bone->data->length * bone->a + bone->worldX;
 			float y = bone->data->length * bone->c + bone->worldY;
 			[_drawNode drawSegmentFrom:ccp(bone->worldX, bone->worldY) to: ccp(x, y)radius:2 color:[CCColor redColor]];
@@ -421,6 +434,7 @@ static bool handlerQueued = false;
 		// Bone origins.
 		for (int i = 0, n = _skeleton->bonesCount; i < n; i++) {
 			spBone *bone = _skeleton->bones[i];
+			if (!bone->active) continue;
 			[_drawNode drawDot:ccp(bone->worldX, bone->worldY) radius:4 color:[CCColor greenColor]];
 			if (i == 0) [_drawNode drawDot:ccp(bone->worldX, bone->worldY) radius:4 color:[CCColor blueColor]];
 		}

@@ -1,35 +1,49 @@
 -------------------------------------------------------------------------------
--- Spine Runtimes Software License v2.5
+-- Spine Runtimes License Agreement
+-- Last updated May 1, 2019. Replaces all prior versions.
 --
--- Copyright (c) 2013-2016, Esoteric Software
--- All rights reserved.
+-- Copyright (c) 2013-2019, Esoteric Software LLC
 --
--- You are granted a perpetual, non-exclusive, non-sublicensable, and
--- non-transferable license to use, install, execute, and perform the Spine
--- Runtimes software and derivative works solely for personal or internal
--- use. Without the written permission of Esoteric Software (see Section 2 of
--- the Spine Software License Agreement), you may not (a) modify, translate,
--- adapt, or develop new applications using the Spine Runtimes or otherwise
--- create derivative works or improvements of the Spine Runtimes or (b) remove,
--- delete, alter, or obscure any trademarks or any copyright, trademark, patent,
--- or other intellectual property or proprietary rights notices on or in the
--- Software, including any copy thereof. Redistributions in binary or source
--- form must include this license and terms.
+-- Integration of the Spine Runtimes into software or otherwise creating
+-- derivative works of the Spine Runtimes is permitted under the terms and
+-- conditions of Section 2 of the Spine Editor License Agreement:
+-- http://esotericsoftware.com/spine-editor-license
 --
--- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
--- IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
--- MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
--- EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
--- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
--- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
--- USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
--- IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
--- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
--- POSSIBILITY OF SUCH DAMAGE.
+-- Otherwise, it is permitted to integrate the Spine Runtimes into software
+-- or otherwise create derivative works of the Spine Runtimes (collectively,
+-- "Products"), provided that each user of the Products must obtain their own
+-- Spine Editor license and redistribution of the Products in any form must
+-- include this license and copyright notice.
+--
+-- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+-- OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+-- OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+-- NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+-- INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+-- BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+-- INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+-- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+-- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+-- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -------------------------------------------------------------------------------
 
 local setmetatable = setmetatable
 local table_insert = table.insert
+local AttachmentType = require "spine-lua.attachments.AttachmentType"
+
+local SkinEntry = {}
+SkinEntry.__index = SkinEntry
+
+function SkinEntry.new (slotIndex, name, attachment)
+    local self = {
+      slotIndex = slotIndex,
+      name = name,
+      attachment = attachment
+    }
+    setmetatable(self, SkinEntry)
+    
+    return self
+end
 
 local Skin = {}
 Skin.__index = Skin
@@ -39,17 +53,83 @@ function Skin.new (name)
 
 	local self = {
 		name = name,
-		attachments = {}
+		attachments = {},
+    bones = {},
+    constraints = {}
 	}
 	setmetatable(self, Skin)
 
 	return self
 end
 
-function Skin:addAttachment (slotIndex, name, attachment)
+function Skin:setAttachment (slotIndex, name, attachment)
 	if not name then error("name cannot be nil.", 2) end
 	if not self.attachments[slotIndex] then self.attachments[slotIndex] = {} end
 	self.attachments[slotIndex][name] = attachment
+end
+
+function Skin:addSkin (skin)
+  for i, bone in ipairs(skin.bones) do
+    local contained = false
+    for j, otherBone in ipairs(self.bones) do
+      if otherBone == bone then
+        contained = true
+        break
+      end
+    end
+    if not contained then table_insert(self.bones, bone) end
+  end
+  
+  for i, constraint in ipairs(skin.constraints) do
+    local contained = false
+    for j, otherConstraint in ipairs(self.constraints) do
+      if otherConstraint == constraint then
+        contained = true
+        break
+      end
+    end
+    if not contained then table_insert(self.constraints, constraint) end
+  end
+  
+  local attachments = skin:getAttachments()
+  for i, entry in ipairs(attachments) do
+    self:setAttachment(entry.slotIndex, entry.name, entry.attachment)
+  end
+end
+
+function Skin:copySkin (skin)
+  for i, bone in ipairs(skin.bones) do
+    local contained = false
+    for j, otherBone in ipairs(self.bones) do
+      if otherBone == bone then
+        contained = true
+        break
+      end
+    end
+    if not contained then table_insert(self.bones, bone) end
+  end
+  
+  for i, constraint in ipairs(skin.constraints) do
+    local contained = false
+    for j, otherConstraint in ipairs(self.constraints) do
+      if otherConstraint == constraint then
+        contained = true
+        break
+      end
+    end
+    if not contained then table_insert(self.constraints, constraint) end
+  end
+  
+  local attachments = skin:getAttachments()
+  for i, entry in ipairs(attachments) do
+    if entry.attachment.type == AttachmentType.mesh then
+      entry.attachment = entry.attachment:newLinkedMesh()
+      self:setAttachment(entry.slotIndex, entry.name, entry.attachment)
+    else
+      entry.attachment = entry.attachment:copy()
+      self:setAttachment(entry.slotIndex, entry.name, entry.attachment)
+    end
+  end
 end
 
 function Skin:getAttachment (slotIndex, name)
@@ -60,6 +140,46 @@ function Skin:getAttachment (slotIndex, name)
 	else
 		return nil
 	end
+end
+
+function Skin:removeAttachment (slotIndex, name)
+  local slotAttachments = self.attachments[slotIndex]
+  if slotAttachments then
+    slotAttachments[name] = nil
+  end
+end
+
+function Skin:getAttachments ()
+  local entries = {}
+  for slotIndex, slotAttachments in pairs(self.attachments) do
+    if slotAttachments then
+      for name, attachment in pairs(slotAttachments) do
+        if attachment then
+          table_insert(entries, SkinEntry.new(slotIndex, name, attachment))
+        end
+      end
+    end
+  end
+  return entries
+end
+
+function Skin:getAttachmentsForSlot (slotIndex)
+  local entries = {}
+  local slotAttachments = self.attachments[slotIndex]
+  if slotAttachments then
+    for name, attachment in pairs(slotAttachments) do
+      if attachment then
+        table_insert(entries, SkinEntry.new(slotIndex, name, attachment))
+      end
+    end
+  end
+  return entries
+end
+
+function Skin:clear ()
+  self.attachments = {}
+  self.bones = {}
+  self.constraints = {}
 end
 
 function Skin:attachAll(skeleton, oldSkin)

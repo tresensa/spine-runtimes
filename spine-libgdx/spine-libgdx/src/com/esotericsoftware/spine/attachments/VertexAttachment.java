@@ -1,57 +1,59 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package com.esotericsoftware.spine.attachments;
+
+import static com.esotericsoftware.spine.utils.SpineUtils.*;
+
+import com.badlogic.gdx.utils.FloatArray;
 
 import com.esotericsoftware.spine.Bone;
 import com.esotericsoftware.spine.Skeleton;
 import com.esotericsoftware.spine.Slot;
 
-import com.badlogic.gdx.utils.FloatArray;
-
 /** Base class for an attachment with vertices that are transformed by one or more bones and can be deformed by a slot's
- * {@link Slot#getAttachmentVertices()}. */
-public class VertexAttachment extends Attachment {
+ * {@link Slot#getDeform()}. */
+abstract public class VertexAttachment extends Attachment {
 	static private int nextID;
 
 	private final int id = (nextID() & 65535) << 11;
 	int[] bones;
 	float[] vertices;
 	int worldVerticesLength;
+	VertexAttachment deformAttachment = this;
 
 	public VertexAttachment (String name) {
 		super(name);
 	}
 
-	/** Transforms the attachment's local {@link #getVertices()} to world coordinates. If the slot has
-	 * {@link Slot#getAttachmentVertices()}, they are used to deform the vertices.
+	/** Transforms the attachment's local {@link #getVertices()} to world coordinates. If the slot's {@link Slot#getDeform()} is
+	 * not empty, it is used to deform the vertices.
 	 * <p>
 	 * See <a href="http://esotericsoftware.com/spine-runtime-skeletons#World-transforms">World transforms</a> in the Spine
 	 * Runtimes Guide.
@@ -64,7 +66,7 @@ public class VertexAttachment extends Attachment {
 	public void computeWorldVertices (Slot slot, int start, int count, float[] worldVertices, int offset, int stride) {
 		count = offset + (count >> 1) * stride;
 		Skeleton skeleton = slot.getSkeleton();
-		FloatArray deformArray = slot.getAttachmentVertices();
+		FloatArray deformArray = slot.getDeform();
 		float[] vertices = this.vertices;
 		int[] bones = this.bones;
 		if (bones == null) {
@@ -118,10 +120,15 @@ public class VertexAttachment extends Attachment {
 		}
 	}
 
-	/** Returns true if a deform originally applied to the specified attachment should be applied to this attachment. The default
-	 * implementation returns true only when <code>sourceAttachment</code> is this attachment. */
-	public boolean applyDeform (VertexAttachment sourceAttachment) {
-		return this == sourceAttachment;
+	/** Deform keys for the deform attachment are also applied to this attachment.
+	 * @return May be null if no deform keys should be applied. */
+	public VertexAttachment getDeformAttachment () {
+		return deformAttachment;
+	}
+
+	/** @param deformAttachment May be null if no deform keys should be applied. */
+	public void setDeformAttachment (VertexAttachment deformAttachment) {
+		this.deformAttachment = deformAttachment;
 	}
 
 	/** The bones which affect the {@link #getVertices()}. The array entries are, for each vertex, the number of bones affecting
@@ -160,6 +167,24 @@ public class VertexAttachment extends Attachment {
 	/** Returns a unique ID for this attachment. */
 	public int getId () {
 		return id;
+	}
+
+	/** Does not copy id (generated) or name (set on construction). **/
+	void copyTo (VertexAttachment attachment) {
+		if (bones != null) {
+			attachment.bones = new int[bones.length];
+			arraycopy(bones, 0, attachment.bones, 0, bones.length);
+		} else
+			attachment.bones = null;
+
+		if (vertices != null) {
+			attachment.vertices = new float[vertices.length];
+			arraycopy(vertices, 0, attachment.vertices, 0, vertices.length);
+		} else
+			attachment.vertices = null;
+
+		attachment.worldVerticesLength = worldVerticesLength;
+		attachment.deformAttachment = deformAttachment;
 	}
 
 	static private synchronized int nextID () {

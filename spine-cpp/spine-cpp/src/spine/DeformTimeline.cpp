@@ -1,32 +1,31 @@
 /******************************************************************************
-* Spine Runtimes Software License v2.5
-*
-* Copyright (c) 2013-2016, Esoteric Software
-* All rights reserved.
-*
-* You are granted a perpetual, non-exclusive, non-sublicensable, and
-* non-transferable license to use, install, execute, and perform the Spine
-* Runtimes software and derivative works solely for personal or internal
-* use. Without the written permission of Esoteric Software (see Section 2 of
-* the Spine Software License Agreement), you may not (a) modify, translate,
-* adapt, or develop new applications using the Spine Runtimes or otherwise
-* create derivative works or improvements of the Spine Runtimes or (b) remove,
-* delete, alter, or obscure any trademarks or any copyright, trademark, patent,
-* or other intellectual property or proprietary rights notices on or in the
-* Software, including any copy thereof. Redistributions in binary or source
-* form must include this license and terms.
-*
-* THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
-* IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-* EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-* PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
-* USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-* ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-* POSSIBILITY OF SUCH DAMAGE.
-*****************************************************************************/
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
+ *
+ * Copyright (c) 2013-2019, Esoteric Software LLC
+ *
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
+ *
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *****************************************************************************/
 
 #ifdef SPINE_UE4
 #include "SpinePluginPrivatePCH.h"
@@ -42,6 +41,7 @@
 #include <spine/Animation.h>
 #include <spine/TimelineType.h>
 #include <spine/Slot.h>
+#include <spine/Bone.h>
 #include <spine/SlotData.h>
 
 using namespace spine;
@@ -68,19 +68,20 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 
 	Slot *slotP = skeleton._slots[_slotIndex];
 	Slot &slot = *slotP;
+	if (!slot._bone.isActive()) return;
 
 	Attachment *slotAttachment = slot.getAttachment();
 	if (slotAttachment == NULL || !slotAttachment->getRTTI().instanceOf(VertexAttachment::rtti)) {
 		return;
 	}
 
-	VertexAttachment *vertexAttachment = static_cast<VertexAttachment *>(slotAttachment);
-	if (!vertexAttachment->applyDeform(_attachment)) {
+	VertexAttachment *attachment = static_cast<VertexAttachment *>(slotAttachment);
+	if (attachment->_deformAttachment != _attachment) {
 		return;
 	}
 
-	Vector<float> &verticesArray = slot._attachmentVertices;
-	if (verticesArray.size() == 0) {
+	Vector<float> &deformArray = slot._deform;
+	if (deformArray.size() == 0) {
 		blend = MixBlend_Setup;
 	}
 
@@ -91,25 +92,25 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 	if (time < _frames[0]) {
 		switch (blend) {
 		case MixBlend_Setup:
-			verticesArray.clear();
+			deformArray.clear();
 			return;
 		case MixBlend_First: {
 			if (alpha == 1) {
-				verticesArray.clear();
+				deformArray.clear();
 				return;
 			}
-			verticesArray.setSize(vertexCount, 0);
-			Vector<float> &vertices = verticesArray;
-			if (vertexAttachment->getBones().size() == 0) {
+			deformArray.setSize(vertexCount, 0);
+			Vector<float> &deformInner = deformArray;
+			if (attachment->getBones().size() == 0) {
 				// Unweighted vertex positions.
-				Vector<float> &setupVertices = vertexAttachment->getVertices();
+				Vector<float> &setupVertices = attachment->getVertices();
 				for (size_t i = 0; i < vertexCount; i++)
-					vertices[i] += (setupVertices[i] - vertices[i]) * alpha;
+					deformInner[i] += (setupVertices[i] - deformInner[i]) * alpha;
 			} else {
 				// Weighted deform offsets.
 				alpha = 1 - alpha;
 				for (size_t i = 0; i < vertexCount; i++)
-					vertices[i] *= alpha;
+					deformInner[i] *= alpha;
 			}
 		}
 		case MixBlend_Replace:
@@ -118,8 +119,8 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 		}
 	}
 
-	verticesArray.setSize(vertexCount, 0);
-	Vector<float> &vertices = verticesArray;
+	deformArray.setSize(vertexCount, 0);
+	Vector<float> &deform = deformArray;
 
 	if (time >= frames[frames.size() - 1]) { // Time is after last frame.
 		Vector<float> &lastVertices = frameVertices[frames.size() - 1];
@@ -130,15 +131,15 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 					// Unweighted vertex positions, no alpha.
 					Vector<float> &setupVertices = vertexAttachment->getVertices();
 					for (size_t i = 0; i < vertexCount; i++)
-						vertices[i] += lastVertices[i] - setupVertices[i];
+						deform[i] += lastVertices[i] - setupVertices[i];
 				} else {
 					// Weighted deform offsets, no alpha.
 					for (size_t i = 0; i < vertexCount; i++)
-						vertices[i] += lastVertices[i];
+						deform[i] += lastVertices[i];
 				}
 			} else {
 				// Vertex positions or deform offsets, no alpha.
-				memcpy(vertices.buffer(), lastVertices.buffer(), vertexCount * sizeof(float));
+				memcpy(deform.buffer(), lastVertices.buffer(), vertexCount * sizeof(float));
 			}
 		} else {
 			switch (blend) {
@@ -149,12 +150,12 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 						Vector<float> &setupVertices = vertexAttachment->getVertices();
 						for (size_t i = 0; i < vertexCount; i++) {
 							float setup = setupVertices[i];
-							vertices[i] = setup + (lastVertices[i] - setup) * alpha;
+							deform[i] = setup + (lastVertices[i] - setup) * alpha;
 						}
 					} else {
 						// Weighted deform offsets, with alpha.
 						for (size_t i = 0; i < vertexCount; i++)
-							vertices[i] = lastVertices[i] * alpha;
+							deform[i] = lastVertices[i] * alpha;
 					}
 					break;
 				}
@@ -162,7 +163,7 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 				case MixBlend_Replace:
 					// Vertex positions or deform offsets, with alpha.
 					for (size_t i = 0; i < vertexCount; i++)
-						vertices[i] += (lastVertices[i] - vertices[i]) * alpha;
+						deform[i] += (lastVertices[i] - deform[i]) * alpha;
 					break;
 				case MixBlend_Add:
 					VertexAttachment *vertexAttachment = static_cast<VertexAttachment *>(slotAttachment);
@@ -170,11 +171,11 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 						// Unweighted vertex positions, no alpha.
 						Vector<float> &setupVertices = vertexAttachment->getVertices();
 						for (size_t i = 0; i < vertexCount; i++)
-							vertices[i] += (lastVertices[i] - setupVertices[i]) * alpha;
+							deform[i] += (lastVertices[i] - setupVertices[i]) * alpha;
 					} else {
 						// Weighted deform offsets, alpha.
 						for (size_t i = 0; i < vertexCount; i++)
-							vertices[i] += lastVertices[i] * alpha;
+							deform[i] += lastVertices[i] * alpha;
 					}
 			}
 		}
@@ -196,20 +197,20 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 				Vector<float> &setupVertices = vertexAttachment->getVertices();
 				for (size_t i = 0; i < vertexCount; i++) {
 					float prev = prevVertices[i];
-					vertices[i] += prev + (nextVertices[i] - prev) * percent - setupVertices[i];
+					deform[i] += prev + (nextVertices[i] - prev) * percent - setupVertices[i];
 				}
 			} else {
 				// Weighted deform offsets, no alpha.
 				for (size_t i = 0; i < vertexCount; i++) {
 					float prev = prevVertices[i];
-					vertices[i] += prev + (nextVertices[i] - prev) * percent;
+					deform[i] += prev + (nextVertices[i] - prev) * percent;
 				}
 			}
 		} else {
 			// Vertex positions or deform offsets, no alpha.
 			for (size_t i = 0; i < vertexCount; i++) {
 				float prev = prevVertices[i];
-				vertices[i] = prev + (nextVertices[i] - prev) * percent;
+				deform[i] = prev + (nextVertices[i] - prev) * percent;
 			}
 		}
 	} else {
@@ -221,13 +222,13 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 					Vector<float> &setupVertices = vertexAttachment->getVertices();
 					for (size_t i = 0; i < vertexCount; i++) {
 						float prev = prevVertices[i], setup = setupVertices[i];
-						vertices[i] = setup + (prev + (nextVertices[i] - prev) * percent - setup) * alpha;
+						deform[i] = setup + (prev + (nextVertices[i] - prev) * percent - setup) * alpha;
 					}
 				} else {
 					// Weighted deform offsets, with alpha.
 					for (size_t i = 0; i < vertexCount; i++) {
 						float prev = prevVertices[i];
-						vertices[i] = (prev + (nextVertices[i] - prev) * percent) * alpha;
+						deform[i] = (prev + (nextVertices[i] - prev) * percent) * alpha;
 					}
 				}
 				break;
@@ -237,7 +238,7 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 				// Vertex positions or deform offsets, with alpha.
 				for (size_t i = 0; i < vertexCount; i++) {
 					float prev = prevVertices[i];
-					vertices[i] += (prev + (nextVertices[i] - prev) * percent - vertices[i]) * alpha;
+					deform[i] += (prev + (nextVertices[i] - prev) * percent - deform[i]) * alpha;
 				}
 				break;
 			case MixBlend_Add:
@@ -247,13 +248,13 @@ void DeformTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vecto
 					Vector<float> &setupVertices = vertexAttachment->getVertices();
 					for (size_t i = 0; i < vertexCount; i++) {
 						float prev = prevVertices[i];
-						vertices[i] += (prev + (nextVertices[i] - prev) * percent - setupVertices[i]) * alpha;
+						deform[i] += (prev + (nextVertices[i] - prev) * percent - setupVertices[i]) * alpha;
 					}
 				} else {
 					// Weighted deform offsets, with alpha.
 					for (size_t i = 0; i < vertexCount; i++) {
 						float prev = prevVertices[i];
-						vertices[i] += (prev + (nextVertices[i] - prev) * percent) * alpha;
+						deform[i] += (prev + (nextVertices[i] - prev) * percent) * alpha;
 					}
 				}
 		}
