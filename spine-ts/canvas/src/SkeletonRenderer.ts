@@ -28,6 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
+declare var TGE: any;
+
 module spine.canvas {
 	export class SkeletonRenderer {
 		static QUAD_TRIANGLES = [0, 1, 2, 2, 3, 0];
@@ -35,18 +37,20 @@ module spine.canvas {
 
 		private ctx: CanvasRenderingContext2D;
 
-		public triangleRendering = false;
+		//public triangleRendering = false;
 		public debugRendering = false;
 		private vertices = Utils.newFloatArray(8 * 1024);
-		private tempColor = new Color();
+		private tempColor = new Alpha();
 
 		constructor (context: CanvasRenderingContext2D) {
 			this.ctx = context;
 		}
 
 		draw (skeleton: Skeleton) {
-			if (this.triangleRendering) this.drawTriangles(skeleton);
-			else this.drawImages(skeleton);
+			//if (this.triangleRendering) this.drawTriangles(skeleton);
+			//else this.drawImages(skeleton);
+
+			this.drawImages(skeleton);
 		}
 
 		private drawImages (skeleton: Skeleton) {
@@ -60,13 +64,22 @@ module spine.canvas {
 				let slot = drawOrder[i];
 				let attachment = slot.getAttachment();
 				let regionAttachment: RegionAttachment = null;
-				let region: TextureAtlasRegion = null;
-				let image: HTMLImageElement = null;
+				let region: TextureRegion = null;
+				//let image: HTMLImageElement = null;
+
+				// TGE CHANGE
+				let spriteSheet: CanvasImageSource = null;
+                var spriteInfo: any = null;
 
 				if (attachment instanceof RegionAttachment) {
 					regionAttachment = <RegionAttachment>attachment;
-					region = <TextureAtlasRegion>regionAttachment.region;
-					image = (<CanvasTexture>region.texture).getImage();
+					region = <TextureRegion>regionAttachment.region;
+					
+					// TGE CHANGE
+					//image = (<CanvasTexture>region.texture).getImage();
+					var flatName = region.name.replace(/\//g, "_"); // TGE trims forward slashes so we need to flatten them out in the converter
+					spriteInfo = TGE.AssetManager.Get(flatName + "_" + region.uid);
+                    spriteSheet = spriteInfo.spriteSheet;
 				} else continue;
 
 				let skeleton = slot.bone.skeleton;
@@ -75,10 +88,7 @@ module spine.canvas {
 				let regionColor = regionAttachment.color;
 				let alpha = skeletonColor.a * slotColor.a * regionColor.a;
 				let color = this.tempColor;
-				color.set(skeletonColor.r * slotColor.r * regionColor.r,
-					skeletonColor.g * slotColor.g * regionColor.g,
-					skeletonColor.b * slotColor.b * regionColor.b,
-					alpha);
+				color.set(alpha);
 
 				let att = <RegionAttachment>attachment;
 				let bone = slot.bone;
@@ -91,22 +101,22 @@ module spine.canvas {
 				let atlasScale = att.width / w;
 				ctx.scale(atlasScale * attachment.scaleX, atlasScale * attachment.scaleY);
 				ctx.translate(w / 2, h / 2);
-				if (attachment.region.rotate) {
+				/*if (attachment.region.rotate) {
 					let t = w;
 					w = h;
 					h = t;
 					ctx.rotate(-Math.PI / 2);
-				}
+				}*/
 				ctx.scale(1, -1);
 				ctx.translate(-w / 2, -h / 2);
-				if (color.r != 1 || color.g != 1 || color.b != 1 || color.a != 1) {
+				if (color.a != 1) {
 					ctx.globalAlpha = color.a;
 					// experimental tinting via compositing, doesn't work
 					// ctx.globalCompositeOperation = "source-atop";
 					// ctx.fillStyle = "rgba(" + (color.r * 255 | 0) + ", " + (color.g * 255 | 0)  + ", " + (color.b * 255 | 0) + ", " + color.a + ")";
 					// ctx.fillRect(0, 0, w, h);
 				}
-				ctx.drawImage(image, region.x, region.y, w, h, 0, 0, w, h);
+				ctx.drawImage(spriteSheet, region.x, region.y, w, h, 0, 0, w, h);
 				if (this.debugRendering) ctx.strokeRect(0, 0, w, h);
 				ctx.restore();
 			}
@@ -114,7 +124,7 @@ module spine.canvas {
 			ctx.restore();
 		}
 
-		private drawTriangles (skeleton: Skeleton) {
+		/*private drawTriangles (skeleton: Skeleton) {
 			let blendMode: BlendMode = null;
 
 			let vertices: ArrayLike<number> = this.vertices;
@@ -322,6 +332,6 @@ module spine.canvas {
 			}
 
 			return vertices;
-		}
+		}*/
 	}
 }

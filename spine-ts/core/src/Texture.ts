@@ -29,7 +29,7 @@
  *****************************************************************************/
 
 module spine {
-	export abstract class Texture {
+	/*export abstract class Texture {
 		protected _image: HTMLImageElement;
 
 		constructor (image: HTMLImageElement) {
@@ -81,21 +81,30 @@ module spine {
 		MirroredRepeat = 33648, // WebGLRenderingContext.MIRRORED_REPEAT
 		ClampToEdge = 33071, // WebGLRenderingContext.CLAMP_TO_EDGE
 		Repeat = 10497 // WebGLRenderingContext.REPEAT
-	}
+	}*/
 
 	export class TextureRegion {
 		renderObject: any;
-		u = 0; v = 0;
-		u2 = 0; v2 = 0;
-		width = 0; height = 0;
+		name = "";
+		uid = "";
+		/*u = 0; 
+		v = 0;
+		u2 = 0;
+		v2 = 0;*/
+		x = 0;
+		y = 0;
+		width = 0; 
+		height = 0;
 		rotate = false;
-		offsetX = 0; offsetY = 0;
-		originalWidth = 0; originalHeight = 0;
+		offsetX = 0; 
+		offsetY = 0;
+		originalWidth = 0; 
+		originalHeight = 0;
 	}
 
-	export class FakeTexture extends spine.Texture {
+	/*export class FakeTexture extends spine.Texture {
 		setFilters(minFilter: spine.TextureFilter, magFilter: spine.TextureFilter) { }
 		setWraps(uWrap: spine.TextureWrap, vWrap: spine.TextureWrap) { }
 		dispose() { }
-	}
+	}*/
 }

@@ -30,7 +30,7 @@
 
 module spine {
 	export class BoundingBoxAttachment extends VertexAttachment {
-		color = new Color(1, 1, 1, 1);
+		color = new Alpha(1);
 
 		constructor (name: string) {
 			super(name);

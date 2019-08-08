@@ -10,7 +10,44 @@
 	},
 	"include": [
 		"core/src/**/*",
-		"canvas/src/**/*"
+		
+		/*"core/src/attachments/*",
+		"core/src/vertexeffects/*",
+		"core/src/Animation.ts",
+		"core/src/AnimationState.ts",
+		"core/src/AnimationStateData.ts",
+		"core/src/AssetManager.ts",
+		"core/src/AtlasAttachmentLoader.ts",
+		"core/src/BlendMode.ts",
+		"core/src/Bone.ts",
+		"core/src/BoneData.ts",
+		"core/src/Constraint.ts",
+		"core/src/Event.ts",
+		"core/src/EventData.ts",
+		"core/src/IkConstraint.ts",
+		"core/src/IkConstraintData.ts",
+		"core/src/PathConstraint.ts",
+		"core/src/PathConstraintData.ts",
+		"core/src/polyfills.ts",
+		"core/src/SharedAssetManager.ts",
+		"core/src/Skeleton.ts",
+		"core/src/SkeletonBounds.ts",
+		"core/src/SkeletonClipping.ts",
+		"core/src/SkeletonData.ts",
+		"core/src/SkeletonJson.ts",
+		"core/src/Skin.ts",
+		"core/src/Slot.ts",
+		"core/src/SlotData.ts",
+		"core/src/Texture.ts",
+		"core/src/TextureAtlas.ts",
+		"core/src/TransformConstraint.ts",
+		"core/src/TransformConstraintData.ts",
+		"core/src/Triangulator.ts",
+		"core/src/Updatable.ts",
+		"core/src/Utils.ts",
+		"core/src/VertexEffect.ts",*/
+		
+		"canvas/src/SkeletonRenderer.ts"
 	],
 	"exclude": [
 		"webgl",
@@ -19,3 +56,8 @@
 		"build"			 
 	]
 }
+
+
+// TRY TO ELIMINATE:
+// - colors
+// - stuff in Utils

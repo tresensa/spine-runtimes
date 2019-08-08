@@ -63,60 +63,60 @@ module spine {
 		restore (): void;
 	}
 
-	export class Color {
-		public static WHITE = new Color(1, 1, 1, 1);
+	export class Alpha {
+		/*public static WHITE = new Color(1, 1, 1, 1);
 		public static RED = new Color(1, 0, 0, 1);
 		public static GREEN = new Color(0, 1, 0, 1);
 		public static BLUE = new Color(0, 0, 1, 1);
-		public static MAGENTA = new Color(1, 0, 1, 1);
+		public static MAGENTA = new Color(1, 0, 1, 1);*/
 
-		constructor (public r: number = 0, public g: number = 0, public b: number = 0, public a: number = 0) {
+		constructor (/*public r: number = 0, public g: number = 0, public b: number = 0,*/ public a: number = 0) {
 		}
 
-		set (r: number, g: number, b: number, a: number) {
-			this.r = r;
+		set (a: number) {
+			/*this.r = r;
 			this.g = g;
-			this.b = b;
+			this.b = b;*/
 			this.a = a;
 			this.clamp();
 			return this;
 		}
 
-		setFromColor (c: Color) {
-			this.r = c.r;
+		setFromColor (c: Alpha) {
+			/*this.r = c.r;
 			this.g = c.g;
-			this.b = c.b;
+			this.b = c.b;*/
 			this.a = c.a;
 			return this;
 		}
 
 		setFromString (hex: string) {
 			hex = hex.charAt(0) == '#' ? hex.substr(1) : hex;
-			this.r = parseInt(hex.substr(0, 2), 16) / 255.0;
+			/*this.r = parseInt(hex.substr(0, 2), 16) / 255.0;
 			this.g = parseInt(hex.substr(2, 2), 16) / 255.0;
-			this.b = parseInt(hex.substr(4, 2), 16) / 255.0;
+			this.b = parseInt(hex.substr(4, 2), 16) / 255.0;*/
 			this.a = (hex.length != 8 ? 255 : parseInt(hex.substr(6, 2), 16)) / 255.0;
 			return this;
 		}
 
-		add (r: number, g: number, b: number, a: number) {
-			this.r += r;
+		add (a: number) {
+			/*this.r += r;
 			this.g += g;
-			this.b += b;
+			this.b += b;*/
 			this.a += a;
 			this.clamp();
 			return this;
 		}
 
 		clamp () {
-			if (this.r < 0) this.r = 0;
+			/*if (this.r < 0) this.r = 0;
 			else if (this.r > 1) this.r = 1;
 
 			if (this.g < 0) this.g = 0;
 			else if (this.g > 1) this.g = 1;
 
 			if (this.b < 0) this.b = 0;
-			else if (this.b > 1) this.b = 1;
+			else if (this.b > 1) this.b = 1;*/
 
 			if (this.a < 0) this.a = 0;
 			else if (this.a > 1) this.a = 1;
@@ -159,7 +159,7 @@ module spine {
 			return x < 0 ? -y : y;
 		}
 
-		static randomTriangular (min: number, max: number): number {
+		/*static randomTriangular (min: number, max: number): number {
 			return MathUtils.randomTriangularWith(min, max, (min + max) * 0.5);
 		}
 
@@ -168,7 +168,7 @@ module spine {
 			let d = max - min;
 			if (u <= (mode - min) / d) return min + Math.sqrt(u * d * (mode - min));
 			return max - Math.sqrt((1 - u) * d * (max - mode));
-		}
+		}*/
 	}
 
 	export abstract class Interpolation {
@@ -178,7 +178,7 @@ module spine {
 		}
 	}
 
-	export class Pow extends Interpolation {
+	/*export class Pow extends Interpolation {
 		protected power = 2;
 
 		constructor (power: number) {
@@ -190,9 +190,9 @@ module spine {
 			if (a <= 0.5) return Math.pow(a * 2, this.power) / 2;
 			return Math.pow((a - 1) * 2, this.power) / (this.power % 2 == 0 ? -2 : 2) + 1;
 		}
-	}
+	}*/
 
-	export class PowOut extends Pow {
+	/*export class PowOut extends Pow {
 		constructor (power: number) {
 			super(power);
 		}
@@ -200,7 +200,7 @@ module spine {
 		applyInternal (a: number) : number {
 			return Math.pow(a - 1, this.power) * (this.power % 2 == 0 ? -1 : 1) + 1;
 		}
-	}
+	}*/
 
 	export class Utils {
 		static SUPPORTS_TYPED_ARRAYS = typeof(Float32Array) !== "undefined";
@@ -314,7 +314,7 @@ module spine {
 			return this;
 		}
 
-		length () {
+		/*length () {
 			let x = this.x;
 			let y = this.y;
 			return Math.sqrt(x * x + y * y);
@@ -327,10 +327,10 @@ module spine {
 				this.y /= len;
 			}
 			return this;
-		}
+		}*/
 	}
 
-	export class TimeKeeper {
+	/*export class TimeKeeper {
 		maxDelta = 0.064;
 		framesPerSecond = 0;
 		delta = 0;
@@ -355,14 +355,14 @@ module spine {
 				this.frameCount = 0;
 			}
 		}
-	}
+	}*/
 
 	export interface ArrayLike<T> {
 		length: number;
 		[n: number]: T;
 	}
 
-	export class WindowedMean {
+	/*export class WindowedMean {
 		values: Array<number>;
 		addedValues = 0;
 		lastValue = 0;
@@ -400,5 +400,5 @@ module spine {
 				return 0;
 			}
 		}
-	}
+	}*/
 }

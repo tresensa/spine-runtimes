@@ -505,8 +505,9 @@ module spine {
 
 	export class ColorTimeline extends CurveTimeline {
 		static ENTRIES = 5;
-		static PREV_TIME = -5; static PREV_R = -4; static PREV_G = -3; static PREV_B = -2; static PREV_A = -1;
-		static R = 1; static G = 2; static B = 3; static A = 4;
+		static PREV_TIME = -5; 
+		static PREV_A = -1;
+		static A = 4;
 
 		slotIndex: number;
 		frames: ArrayLike<number>; // time, r, g, b, a, ...
@@ -521,12 +522,9 @@ module spine {
 		}
 
 		/** Sets the time and value of the specified keyframe. */
-		setFrame (frameIndex: number, time: number, r: number, g: number, b: number, a: number) {
+		setFrame (frameIndex: number, time: number, a: number) {
 			frameIndex *= ColorTimeline.ENTRIES;
 			this.frames[frameIndex] = time;
-			this.frames[frameIndex + ColorTimeline.R] = r;
-			this.frames[frameIndex + ColorTimeline.G] = g;
-			this.frames[frameIndex + ColorTimeline.B] = b;
 			this.frames[frameIndex + ColorTimeline.A] = a;
 		}
 
@@ -540,46 +538,36 @@ module spine {
 					return;
 				case MixBlend.first:
 					let color = slot.color, setup = slot.data.color;
-					color.add((setup.r - color.r) * alpha, (setup.g - color.g) * alpha, (setup.b - color.b) * alpha,
-						(setup.a - color.a) * alpha);
+					color.add((setup.a - color.a) * alpha);
 				}
 				return;
 			}
 
-			let r = 0, g = 0, b = 0, a = 0;
+			let /*r = 0, g = 0, b = 0,*/ a = 0;
 			if (time >= frames[frames.length - ColorTimeline.ENTRIES]) { // Time is after last frame.
 				let i = frames.length;
-				r = frames[i + ColorTimeline.PREV_R];
-				g = frames[i + ColorTimeline.PREV_G];
-				b = frames[i + ColorTimeline.PREV_B];
 				a = frames[i + ColorTimeline.PREV_A];
 			} else {
 				// Interpolate between the previous frame and the current frame.
 				let frame = Animation.binarySearch(frames, time, ColorTimeline.ENTRIES);
-				r = frames[frame + ColorTimeline.PREV_R];
-				g = frames[frame + ColorTimeline.PREV_G];
-				b = frames[frame + ColorTimeline.PREV_B];
 				a = frames[frame + ColorTimeline.PREV_A];
 				let frameTime = frames[frame];
 				let percent = this.getCurvePercent(frame / ColorTimeline.ENTRIES - 1,
 					1 - (time - frameTime) / (frames[frame + ColorTimeline.PREV_TIME] - frameTime));
 
-				r += (frames[frame + ColorTimeline.R] - r) * percent;
-				g += (frames[frame + ColorTimeline.G] - g) * percent;
-				b += (frames[frame + ColorTimeline.B] - b) * percent;
 				a += (frames[frame + ColorTimeline.A] - a) * percent;
 			}
 			if (alpha == 1)
-				slot.color.set(r, g, b, a);
+				slot.color.set(a);
 			else {
 				let color = slot.color;
 				if (blend == MixBlend.setup) color.setFromColor(slot.data.color);
-				color.add((r - color.r) * alpha, (g - color.g) * alpha, (b - color.b) * alpha, (a - color.a) * alpha);
+				color.add((a - color.a) * alpha);
 			}
 		}
 	}
 
-	export class TwoColorTimeline extends CurveTimeline {
+	/*export class TwoColorTimeline extends CurveTimeline {
 		static ENTRIES = 8;
 		static PREV_TIME = -8; static PREV_R = -7; static PREV_G = -6; static PREV_B = -5; static PREV_A = -4;
 		static PREV_R2 = -3; static PREV_G2 = -2; static PREV_B2 = -1;
@@ -597,7 +585,7 @@ module spine {
 			return (TimelineType.twoColor << 24) + this.slotIndex;
 		}
 
-		/** Sets the time and value of the specified keyframe. */
+		// Sets the time and value of the specified keyframe.
 		setFrame (frameIndex: number, time: number, r: number, g: number, b: number, a: number, r2: number, g2: number, b2: number) {
 			frameIndex *= TwoColorTimeline.ENTRIES;
 			this.frames[frameIndex] = time;
@@ -673,7 +661,7 @@ module spine {
 				dark.add((r2 - dark.r) * alpha, (g2 - dark.g) * alpha, (b2 - dark.b) * alpha, 0);
 			}
 		}
-	}
+	}*/
 
 	export class AttachmentTimeline implements Timeline {
 		slotIndex: number;
@@ -730,7 +718,7 @@ module spine {
 
 	var zeros : ArrayLike<number> = null;
 
-	export class DeformTimeline extends CurveTimeline {
+	/*export class DeformTimeline extends CurveTimeline {
 		slotIndex: number;
 		attachment: VertexAttachment;
 		frames: ArrayLike<number>; // time, ...
@@ -747,7 +735,7 @@ module spine {
 			return (TimelineType.deform << 27) + + this.attachment.id + this.slotIndex;
 		}
 
-		/** Sets the time of the specified keyframe. */
+		// Sets the time of the specified keyframe.
 		setFrame (frameIndex: number, time: number, vertices: ArrayLike<number>) {
 			this.frames[frameIndex] = time;
 			this.frameVertices[frameIndex] = vertices;
@@ -928,7 +916,7 @@ module spine {
 				}
 			}
 		}
-	}
+	}*/
 
 	export class EventTimeline implements Timeline {
 		frames: ArrayLike<number>; // time, ...
@@ -1053,7 +1041,7 @@ module spine {
 			return (TimelineType.ikConstraint << 24) + this.ikConstraintIndex;
 		}
 
-		/** Sets the time, mix and bend direction of the specified keyframe. */
+		// Sets the time, mix and bend direction of the specified keyframe.
 		setFrame (frameIndex: number, time: number, mix: number, bendDirection: number, compress: boolean, stretch: boolean) {
 			frameIndex *= IkConstraintTimeline.ENTRIES;
 			this.frames[frameIndex] = time;
@@ -1135,7 +1123,7 @@ module spine {
 		}
 	}
 
-	export class TransformConstraintTimeline extends CurveTimeline {
+	/*export class TransformConstraintTimeline extends CurveTimeline {
 		static ENTRIES = 5;
 		static PREV_TIME = -5; static PREV_ROTATE = -4; static PREV_TRANSLATE = -3; static PREV_SCALE = -2; static PREV_SHEAR = -1;
 		static ROTATE = 1; static TRANSLATE = 2; static SCALE = 3; static SHEAR = 4;
@@ -1152,7 +1140,7 @@ module spine {
 			return (TimelineType.transformConstraint << 24) + this.transformConstraintIndex;
 		}
 
-		/** Sets the time and mixes of the specified keyframe. */
+		// Sets the time and mixes of the specified keyframe.
 		setFrame (frameIndex: number, time: number, rotateMix: number, translateMix: number, scaleMix: number, shearMix: number) {
 			frameIndex *= TransformConstraintTimeline.ENTRIES;
 			this.frames[frameIndex] = time;
@@ -1220,9 +1208,9 @@ module spine {
 				constraint.shearMix += (shear - constraint.shearMix) * alpha;
 			}
 		}
-	}
+	}*/
 
-	export class PathConstraintPositionTimeline extends CurveTimeline {
+	/*export class PathConstraintPositionTimeline extends CurveTimeline {
 		static ENTRIES = 2;
 		static PREV_TIME = -2; static PREV_VALUE = -1;
 		static VALUE = 1;
@@ -1240,7 +1228,7 @@ module spine {
 			return (TimelineType.pathConstraintPosition << 24) + this.pathConstraintIndex;
 		}
 
-		/** Sets the time and value of the specified keyframe. */
+		// Sets the time and value of the specified keyframe.
 		setFrame (frameIndex: number, time: number, value: number) {
 			frameIndex *= PathConstraintPositionTimeline.ENTRIES;
 			this.frames[frameIndex] = time;
@@ -1343,7 +1331,7 @@ module spine {
 			return (TimelineType.pathConstraintMix << 24) + this.pathConstraintIndex;
 		}
 
-		/** Sets the time and mixes of the specified keyframe. */
+		// Sets the time and mixes of the specified keyframe.
 		setFrame (frameIndex: number, time: number, rotateMix: number, translateMix: number) {
 			frameIndex *= PathConstraintMixTimeline.ENTRIES;
 			this.frames[frameIndex] = time;
@@ -1393,5 +1381,5 @@ module spine {
 				constraint.translateMix += (translate - constraint.translateMix) * alpha;
 			}
 		}
-	}
+	}*/
 }

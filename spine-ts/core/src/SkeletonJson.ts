@@ -32,13 +32,13 @@ module spine {
 	export class SkeletonJson {
 		attachmentLoader: AttachmentLoader;
 		scale = 1;
-		private linkedMeshes = new Array<LinkedMesh>();
+		//private linkedMeshes = new Array<LinkedMesh>();
 
 		constructor (attachmentLoader: AttachmentLoader) {
 			this.attachmentLoader = attachmentLoader;
 		}
 
-		readSkeletonData (json: string | any): SkeletonData {
+		readSkeletonData (json: string | any, uid: string): SkeletonData {
 			let scale = this.scale;
 			let skeletonData = new SkeletonData();
 			let root = typeof(json) === "string" ? JSON.parse(json) : json;
@@ -95,18 +95,18 @@ module spine {
 
 					let dark: string = this.getValue(slotMap, "dark", null);
 					if (dark != null) {
-						data.darkColor = new Color(1, 1, 1, 1);
+						data.darkColor = new Alpha(1);
 						data.darkColor.setFromString(dark);
 					}
 
 					data.attachmentName = this.getValue(slotMap, "attachment", null);
-					data.blendMode = SkeletonJson.blendModeFromString(this.getValue(slotMap, "blend", "normal"));
+					//data.blendMode = SkeletonJson.blendModeFromString(this.getValue(slotMap, "blend", "normal"));
 					skeletonData.slots.push(data);
 				}
 			}
 
 			// IK constraints
-			if (root.ik) {
+			/*if (root.ik) {
 				for (let i = 0; i < root.ik.length; i++) {
 					let constraintMap = root.ik[i];
 					let data = new IkConstraintData(constraintMap.name);
@@ -131,10 +131,10 @@ module spine {
 
 					skeletonData.ikConstraints.push(data);
 				}
-			}
+			}*/
 
 			// Transform constraints.
-			if (root.transform) {
+			/*if (root.transform) {
 				for (let i = 0; i < root.transform.length; i++) {
 					let constraintMap = root.transform[i];
 					let data = new TransformConstraintData(constraintMap.name);
@@ -167,10 +167,10 @@ module spine {
 
 					skeletonData.transformConstraints.push(data);
 				}
-			}
+			}*/
 
 			// Path constraints.
-			if (root.path) {
+			/*if (root.path) {
 				for (let i = 0; i < root.path.length; i++) {
 					let constraintMap = root.path[i];
 					let data = new PathConstraintData(constraintMap.name);
@@ -200,7 +200,7 @@ module spine {
 
 					skeletonData.pathConstraints.push(data);
 				}
-			}
+			}*/
 
 			// Skins.
 			if (root.skins) {
@@ -212,7 +212,7 @@ module spine {
 						if (slotIndex == -1) throw new Error("Slot not found: " + slotName);
 						let slotMap = skinMap[slotName];
 						for (let entryName in slotMap) {
-							let attachment = this.readAttachment(slotMap[entryName], skin, slotIndex, entryName, skeletonData);
+							let attachment = this.readAttachment(slotMap[entryName], skin, slotIndex, entryName, skeletonData, uid);
 							if (attachment != null) skin.addAttachment(slotIndex, entryName, attachment);
 						}
 					}
@@ -222,7 +222,7 @@ module spine {
 			}
 
 			// Linked meshes.
-			for (let i = 0, n = this.linkedMeshes.length; i < n; i++) {
+			/*for (let i = 0, n = this.linkedMeshes.length; i < n; i++) {
 				let linkedMesh = this.linkedMeshes[i];
 				let skin = linkedMesh.skin == null ? skeletonData.defaultSkin : skeletonData.findSkin(linkedMesh.skin);
 				if (skin == null) throw new Error("Skin not found: " + linkedMesh.skin);
@@ -231,7 +231,7 @@ module spine {
 				linkedMesh.mesh.setParentMesh(<MeshAttachment> parent);
 				linkedMesh.mesh.updateUVs();
 			}
-			this.linkedMeshes.length = 0;
+			this.linkedMeshes.length = 0;*/
 
 			// Events.
 			if (root.events) {
@@ -261,7 +261,7 @@ module spine {
 			return skeletonData;
 		}
 
-		readAttachment (map: any, skin: Skin, slotIndex: number, name: string, skeletonData: SkeletonData): Attachment {
+		readAttachment (map: any, skin: Skin, slotIndex: number, name: string, skeletonData: SkeletonData, uid: string): Attachment {
 			let scale = this.scale;
 			name = this.getValue(map, "name", name);
 
@@ -270,7 +270,7 @@ module spine {
 			switch (type) {
 				case "region": {
 					let path = this.getValue(map, "path", name);
-					let region = this.attachmentLoader.newRegionAttachment(skin, name, path);
+					let region = this.attachmentLoader.newRegionAttachment(skin, name, path, uid);
 					if (region == null) return null;
 					region.path = path;
 					region.x = this.getValue(map, "x", 0) * scale;
@@ -295,10 +295,10 @@ module spine {
 					if (color != null) box.color.setFromString(color);
 					return box;
 				}
-				case "mesh":
+				/*case "mesh":
 				case "linkedmesh": {
 					let path = this.getValue(map, "path", name);
-					let mesh = this.attachmentLoader.newMeshAttachment(skin, name, path);
+					let mesh = this.attachmentLoader.newMeshAttachment(skin, name, path, uid);
 					if (mesh == null) return null;
 					mesh.path = path;
 
@@ -320,8 +320,8 @@ module spine {
 
 					mesh.hullLength = this.getValue(map, "hull", 0) * 2;
 					return mesh;
-				}
-				case "path": {
+				}*/
+				/*case "path": {
 					let path = this.attachmentLoader.newPathAttachment(skin, name);
 					if (path == null) return null;
 					path.closed = this.getValue(map, "closed", false);
@@ -338,7 +338,7 @@ module spine {
 					let color: string = this.getValue(map, "color", null);
 					if (color != null) path.color.setFromString(color);
 					return path;
-				}
+				}*/
 				case "point": {
 					let point = this.attachmentLoader.newPointAttachment(skin, name);
 					if (point == null) return null;
@@ -350,7 +350,7 @@ module spine {
 					if (color != null) point.color.setFromString(color);
 					return point;
 				}
-				case "clipping": {
+				/*case "clipping": {
 					let clip = this.attachmentLoader.newClippingAttachment(skin, name);
 					if (clip == null) return null;
 
@@ -367,7 +367,7 @@ module spine {
 					let color: string = this.getValue(map, "color", null);
 					if (color != null) clip.color.setFromString(color);
 					return clip;
-				}
+				}*/
 			}
 			return null;
 		}
@@ -432,16 +432,16 @@ module spine {
 							let frameIndex = 0;
 							for (let i = 0; i < timelineMap.length; i++) {
 								let valueMap = timelineMap[i];
-								let color = new Color();
+								let color = new Alpha();
 								color.setFromString(valueMap.color);
-								timeline.setFrame(frameIndex, valueMap.time, color.r, color.g, color.b, color.a);
+								timeline.setFrame(frameIndex, valueMap.time, color.a);
 								this.readCurve(valueMap, timeline, frameIndex);
 								frameIndex++;
 							}
 							timelines.push(timeline);
 							duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * ColorTimeline.ENTRIES]);
 
-						} else if (timelineName == "twoColor") {
+						} /*else if (timelineName == "twoColor") {
 							let timeline = new TwoColorTimeline(timelineMap.length);
 							timeline.slotIndex = slotIndex;
 
@@ -459,7 +459,7 @@ module spine {
 							timelines.push(timeline);
 							duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * TwoColorTimeline.ENTRIES]);
 
-						} else
+						}*/ else
 							throw new Error("Invalid timeline type for a slot: " + timelineName + " (" + slotName + ")");
 					}
 				}
@@ -518,7 +518,7 @@ module spine {
 			}
 
 			// IK constraint timelines.
-			if (map.ik) {
+			/*if (map.ik) {
 				for (let constraintName in map.ik) {
 					let constraintMap = map.ik[constraintName];
 					let constraint = skeletonData.findIkConstraint(constraintName);
@@ -535,10 +535,10 @@ module spine {
 					timelines.push(timeline);
 					duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * IkConstraintTimeline.ENTRIES]);
 				}
-			}
+			}*/
 
 			// Transform constraint timelines.
-			if (map.transform) {
+			/*if (map.transform) {
 				for (let constraintName in map.transform) {
 					let constraintMap = map.transform[constraintName];
 					let constraint = skeletonData.findTransformConstraint(constraintName);
@@ -556,10 +556,10 @@ module spine {
 					duration = Math.max(duration,
 						timeline.frames[(timeline.getFrameCount() - 1) * TransformConstraintTimeline.ENTRIES]);
 				}
-			}
+			}*/
 
 			// Path constraint timelines.
-			if (map.paths) {
+			/*if (map.paths) {
 				for (let constraintName in map.paths) {
 					let constraintMap = map.paths[constraintName];
 					let index = skeletonData.findPathConstraintIndex(constraintName);
@@ -605,10 +605,10 @@ module spine {
 						}
 					}
 				}
-			}
+			}*/
 
 			// Deform timelines.
-			if (map.deform) {
+			/*if (map.deform) {
 				for (let deformName in map.deform) {
 					let deformMap = map.deform[deformName];
 					let skin = skeletonData.findSkin(deformName);
@@ -659,7 +659,7 @@ module spine {
 						}
 					}
 				}
-			}
+			}*/
 
 			// Draw order timeline.
 			let drawOrderNode = map.drawOrder;
@@ -742,7 +742,7 @@ module spine {
 			return map[prop] !== undefined ? map[prop] : defaultValue;
 		}
 
-		static blendModeFromString (str: string) {
+		/*static blendModeFromString (str: string) {
 			str = str.toLowerCase();
 			if (str == "normal") return BlendMode.Normal;
 			if (str == "additive") return BlendMode.Additive;
@@ -772,7 +772,7 @@ module spine {
 			if (str == "chain") return RotateMode.Chain;
 			if (str == "chainscale") return RotateMode.ChainScale;
 			throw new Error(`Unknown rotate mode: ${str}`);
-		}
+		}*/
 
 		static transformModeFromString(str: string) {
 			str = str.toLowerCase();
@@ -785,7 +785,7 @@ module spine {
 		}
 	}
 
-	class LinkedMesh {
+	/*class LinkedMesh {
 		parent: string; skin: string;
 		slotIndex: number;
 		mesh: MeshAttachment;
@@ -796,5 +796,5 @@ module spine {
 			this.slotIndex = slotIndex;
 			this.parent = parent;
 		}
-	}
+	}*/
 }

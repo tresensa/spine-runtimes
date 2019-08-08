@@ -40,7 +40,7 @@ module spine {
 		_updateCache = new Array<Updatable>();
 		updateCacheReset = new Array<Updatable>();
 		skin: Skin;
-		color: Color;
+		color: Alpha;
 		time = 0;
 		scaleX = 1; scaleY = 1;
 		x = 0; y = 0;
@@ -91,7 +91,7 @@ module spine {
 				this.pathConstraints.push(new PathConstraint(pathConstraintData, this));
 			}
 
-			this.color = new Color(1, 1, 1, 1);
+			this.color = new Alpha(1);
 			this.updateCache();
 		}
 
@@ -108,8 +108,10 @@ module spine {
 			let ikConstraints = this.ikConstraints;
 			let transformConstraints = this.transformConstraints;
 			let pathConstraints = this.pathConstraints;
-			let ikCount = ikConstraints.length, transformCount = transformConstraints.length, pathCount = pathConstraints.length;
-			let constraintCount = ikCount + transformCount + pathCount;
+			let ikCount = ikConstraints.length; 
+			let transformCount = transformConstraints.length;
+			let pathCount = pathConstraints.length;
+			let constraintCount = transformCount + ikCount + pathCount;
 
 			outer:
 			for (let i = 0; i < constraintCount; i++) {
@@ -134,7 +136,7 @@ module spine {
 						continue outer;
 					}
 				}
-			}
+		}
 
 			for (let i = 0, n = bones.length; i < n; i++)
 				this.sortBone(bones[i]);
@@ -444,7 +446,7 @@ module spine {
 			return null;
 		}
 
-		/** @return May be null. */
+		// @return May be null.
 		findTransformConstraint (constraintName: string) {
 			if (constraintName == null) throw new Error("constraintName cannot be null.");
 			let transformConstraints = this.transformConstraints;
@@ -484,12 +486,12 @@ module spine {
 					verticesLength = 8;
 					vertices = Utils.setArraySize(temp, verticesLength, 0);
 					(<RegionAttachment>attachment).computeWorldVertices(slot.bone, vertices, 0, 2);
-				} else if (attachment instanceof MeshAttachment) {
+				} /*else if (attachment instanceof MeshAttachment) {
 					let mesh = (<MeshAttachment>attachment);
 					verticesLength = mesh.worldVerticesLength;
 					vertices = Utils.setArraySize(temp, verticesLength, 0);
 					mesh.computeWorldVertices(slot, 0, verticesLength, vertices, 0, 2);
-				}
+				}*/
 				if (vertices != null) {
 					for (let ii = 0, nn = vertices.length; ii < nn; ii += 2) {
 						let x = vertices[ii], y = vertices[ii + 1];

@@ -76,7 +76,7 @@ module spine {
 		static V4 = 31;
 
 		x = 0; y = 0; scaleX = 1; scaleY = 1; rotation = 0; width = 0; height = 0;
-		color = new Color(1, 1, 1, 1);
+		color = new Alpha(1);
 
 		path: string;
 		rendererObject: any;
@@ -85,7 +85,7 @@ module spine {
 		offset = Utils.newFloatArray(8);
 		uvs = Utils.newFloatArray(8);
 
-		tempColor = new Color(1, 1, 1, 1);
+		tempColor = new Alpha(1);
 
 		constructor (name:string) {
 			super(name);
@@ -123,7 +123,7 @@ module spine {
 		setRegion (region: TextureRegion) : void {
 			this.region = region;
 			let uvs = this.uvs;
-			if (region.rotate) {
+			/*if (region.rotate) {
 				uvs[2] = region.u;
 				uvs[3] = region.v2;
 				uvs[4] = region.u;
@@ -141,7 +141,7 @@ module spine {
 				uvs[5] = region.v;
 				uvs[6] = region.u2;
 				uvs[7] = region.v2;
-			}
+			}*/
 		}
 
 		computeWorldVertices (bone: Bone, worldVertices: ArrayLike<number>, offset: number, stride: number) {

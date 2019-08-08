@@ -29,26 +29,31 @@
  *****************************************************************************/
 
 module spine {
-	export class PointAttachment extends VertexAttachment {
-		x: number; y: number; rotation: number;
-		//color = new Color(0.38, 0.94, 0, 1);
-		color = new Alpha(1);
+	export class PathConstraintData {
+		name: string;
+		order = 0;
+		bones = new Array<BoneData>();
+		target: SlotData;
+		positionMode: PositionMode;
+		spacingMode: SpacingMode;
+		rotateMode: RotateMode;
+		offsetRotation: number;
+		position: number; spacing: number; rotateMix: number; translateMix: number;
 
 		constructor (name: string) {
-			super(name);
+			this.name = name;
 		}
+	}
 
-		computeWorldPosition (bone: Bone, point: Vector2) {
-			point.x = this.x * bone.a + this.y * bone.b + bone.worldX;
-			point.y = this.x * bone.c + this.y * bone.d + bone.worldY;
-			return point;
-		}
+	export enum PositionMode {
+		Fixed, Percent
+	}
 
-		computeWorldRotation (bone: Bone) {
-			let cos = MathUtils.cosDeg(this.rotation), sin = MathUtils.sinDeg(this.rotation);
-			let x = cos * bone.a + sin * bone.b;
-			let y = cos * bone.c + sin * bone.d;
-			return Math.atan2(y, x) * MathUtils.radDeg;
-		}
+	export enum SpacingMode {
+		Length, Fixed, Percent
+	}
+
+	export enum RotateMode {
+		Tangent, Chain, ChainScale
 	}
 }

@@ -33,10 +33,10 @@ module spine {
 		index: number;
 		name: string;
 		boneData: BoneData;
-		color = new Color(1, 1, 1, 1);
-		darkColor: Color;
+		color = new Alpha(1);
+		darkColor: Alpha;
 		attachmentName: string;
-		blendMode: BlendMode;
+		//blendMode: BlendMode;
 
 		constructor (index: number, name: string, boneData: BoneData) {
 			if (index < 0) throw new Error("index must be >= 0.");

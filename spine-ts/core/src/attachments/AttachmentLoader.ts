@@ -31,21 +31,22 @@
 module spine {
 	export interface AttachmentLoader {
 		/** @return May be null to not load an attachment. */
-		newRegionAttachment (skin: Skin, name: string, path: string): RegionAttachment;
+		newRegionAttachment (skin: Skin, name: string, path: string, uid: string): RegionAttachment;
 
 		/** @return May be null to not load an attachment. */
-		newMeshAttachment (skin: Skin, name: string, path: string) : MeshAttachment;
+		// TGE CHANGE
+		//newMeshAttachment (skin: Skin, name: string, path: string, uid: string) : MeshAttachment;
 
 		/** @return May be null to not load an attachment. */
 		newBoundingBoxAttachment (skin: Skin, name: string) : BoundingBoxAttachment;
 
 		/** @return May be null to not load an attachment */
-		newPathAttachment(skin: Skin, name: string): PathAttachment;
+		//newPathAttachment(skin: Skin, name: string): PathAttachment;
 
 		/** @return May be null to not load an attachment */
 		newPointAttachment(skin: Skin, name: string): PointAttachment;
 
 		/** @return May be null to not load an attachment */
-		newClippingAttachment(skin: Skin, name: string): ClippingAttachment;
+		//newClippingAttachment(skin: Skin, name: string): ClippingAttachment;
 	}
 }

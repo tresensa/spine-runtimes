@@ -32,8 +32,8 @@ module spine {
 	export class Slot {
 		data: SlotData;
 		bone: Bone;
-		color: Color;
-		darkColor: Color;
+		color: Alpha;
+		darkColor: Alpha;
 		private attachment: Attachment;
 		private attachmentTime: number;
 		attachmentVertices = new Array<number>();
@@ -43,8 +43,8 @@ module spine {
 			if (bone == null) throw new Error("bone cannot be null.");
 			this.data = data;
 			this.bone = bone;
-			this.color = new Color();
-			this.darkColor = data.darkColor == null ? null : new Color();
+			this.color = new Alpha();
+			this.darkColor = data.darkColor == null ? null : new Alpha();
 			this.setToSetupPose();
 		}
 

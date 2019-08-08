@@ -30,15 +30,41 @@
 
 module spine {
 	export class AtlasAttachmentLoader implements AttachmentLoader {
-		atlas: TextureAtlas;
+		
+		// TGE CHANGE
+		//atlas: TextureAtlas;
 
-		constructor (atlas: TextureAtlas) {
-			this.atlas = atlas;
+		constructor () {
+
 		}
 
 		/** @return May be null to not load an attachment. */
-		newRegionAttachment (skin: Skin, name: string, path: string): RegionAttachment {
-			let region = this.atlas.findRegion(path);
+		newRegionAttachment (skin: Skin, name: string, path: string, uid: string): RegionAttachment {
+			
+			// TGE CHANGE
+			//let region = this.atlas.findRegion(path);
+			var flatName = name.replace(/\//g, "_"); // TGE trims forward slashes so we need to flatten them out in the converter
+			let spriteInfo: any = TGE.AssetManager.Get(flatName + "_" + uid);
+            let spriteSheet: CanvasImageSource = spriteInfo.spriteSheet;
+            let drawWidth = typeof(spriteInfo.drawWidth)==="number" ? spriteInfo.drawWidth : spriteInfo.width;
+            let drawHeight = typeof(spriteInfo.drawHeight)==="number" ? spriteInfo.drawHeight : spriteInfo.height;
+			let region = new TextureRegion();
+			region.uid = uid;
+            region.name = name;
+            region.x = spriteInfo.x;
+            region.y = spriteInfo.y;
+            //region.u = spriteInfo.x / (spriteSheet.width as number);
+            //region.v = spriteInfo.y / (spriteSheet.height as number);
+            //region.u2 = (spriteInfo.x + drawWidth) / (spriteSheet.width as number);
+            //region.v2 = (spriteInfo.y + drawHeight) / (spriteSheet.height as number);
+            region.width = drawWidth;
+            region.height = drawHeight;
+            region.rotate = false;
+            region.offsetX = typeof(spriteInfo.offsetX)==="number" ? spriteInfo.offsetX : 0;
+            region.offsetY = typeof(spriteInfo.offsetY)==="number" ? spriteInfo.offsetY : 0;
+            region.originalWidth = spriteInfo.width;
+            region.originalHeight = spriteInfo.height;
+			
 			if (region == null) throw new Error("Region not found in atlas: " + path + " (region attachment: " + name + ")");
 			region.renderObject = region;
 			let attachment = new RegionAttachment(name);
@@ -47,14 +73,14 @@ module spine {
 		}
 
 		/** @return May be null to not load an attachment. */
-		newMeshAttachment (skin: Skin, name: string, path: string) : MeshAttachment {
+		/*newMeshAttachment (skin: Skin, name: string, path: string, uid: string) : MeshAttachment {
 			let region = this.atlas.findRegion(path);
 			if (region == null) throw new Error("Region not found in atlas: " + path + " (mesh attachment: " + name + ")");
 			region.renderObject = region;
 			let attachment = new MeshAttachment(name);
 			attachment.region = region;
 			return attachment;
-		}
+		}*/
 
 		/** @return May be null to not load an attachment. */
 		newBoundingBoxAttachment (skin: Skin, name: string) : BoundingBoxAttachment {
@@ -62,16 +88,16 @@ module spine {
 		}
 
 		/** @return May be null to not load an attachment */
-		newPathAttachment (skin: Skin, name: string): PathAttachment {
+		/*newPathAttachment (skin: Skin, name: string): PathAttachment {
 			return new PathAttachment(name);
-		}
+		}*/
 
 		newPointAttachment(skin: Skin, name: string): PointAttachment {
 			return new PointAttachment(name);
 		}
 
-		newClippingAttachment(skin: Skin, name: string): ClippingAttachment {
+		/*newClippingAttachment(skin: Skin, name: string): ClippingAttachment {
 			return new ClippingAttachment(name);
-		}
+		}*/
 	}
 }
