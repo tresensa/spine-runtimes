@@ -34,8 +34,8 @@ module spine {
 		slots: Array<Slot>;
 		drawOrder: Array<Slot>;
 		ikConstraints: Array<IkConstraint>;
-		transformConstraints: Array<TransformConstraint>;
-		pathConstraints: Array<PathConstraint>;
+		//transformConstraints: Array<TransformConstraint>;
+		//pathConstraints: Array<PathConstraint>;
 		_updateCache = new Array<Updatable>();
 		updateCacheReset = new Array<Updatable>();
 		skin: Skin;
@@ -78,7 +78,7 @@ module spine {
 				this.ikConstraints.push(new IkConstraint(ikConstraintData, this));
 			}
 
-			this.transformConstraints = new Array<TransformConstraint>();
+			/*this.transformConstraints = new Array<TransformConstraint>();
 			for (let i = 0; i < data.transformConstraints.length; i++) {
 				let transformConstraintData = data.transformConstraints[i];
 				this.transformConstraints.push(new TransformConstraint(transformConstraintData, this));
@@ -88,7 +88,7 @@ module spine {
 			for (let i = 0; i < data.pathConstraints.length; i++) {
 				let pathConstraintData = data.pathConstraints[i];
 				this.pathConstraints.push(new PathConstraint(pathConstraintData, this));
-			}
+			}*/
 
 			this.color = new Alpha(1);
 			this.updateCache();
@@ -120,12 +120,12 @@ module spine {
 
 			// IK first, lowest hierarchy depth first.
 			let ikConstraints = this.ikConstraints;
-			let transformConstraints = this.transformConstraints;
-			let pathConstraints = this.pathConstraints;
+			//let transformConstraints = this.transformConstraints;
+			//let pathConstraints = this.pathConstraints;
 			let ikCount = ikConstraints.length; 
-			let transformCount = transformConstraints.length;
-			let pathCount = pathConstraints.length;
-			let constraintCount = transformCount + ikCount + pathCount;
+			//let transformCount = transformConstraints.length;
+			//let pathCount = pathConstraints.length;
+			let constraintCount = /*transformCount +*/ ikCount /*+ pathCount*/;
 
 			outer:
 			for (let i = 0; i < constraintCount; i++) {
@@ -136,7 +136,7 @@ module spine {
 						continue outer;
 					}
 				}
-				for (let ii = 0; ii < transformCount; ii++) {
+				/*for (let ii = 0; ii < transformCount; ii++) {
 					let constraint = transformConstraints[ii];
 					if (constraint.data.order == i) {
 						this.sortTransformConstraint(constraint);
@@ -149,7 +149,7 @@ module spine {
 						this.sortPathConstraint(constraint);
 						continue outer;
 					}
-				}
+				}*/
 		}
 
 			for (let i = 0, n = bones.length; i < n; i++)
@@ -178,7 +178,7 @@ module spine {
 			constrained[constrained.length - 1].sorted = true;
 		}
 
-		sortPathConstraint (constraint: PathConstraint) {
+		/*sortPathConstraint (constraint: PathConstraint) {
 			constraint.active = constraint.target.bone.isActive() && (!constraint.data.skinRequired || (this.skin != null && Utils.contains(this.skin.constraints, constraint.data, true)));
 			if (!constraint.active) return;
 
@@ -205,9 +205,9 @@ module spine {
 				this.sortReset(constrained[i].children);
 			for (let i = 0; i < boneCount; i++)
 				constrained[i].sorted = true;
-		}
+		}*/
 
-		sortTransformConstraint (constraint: TransformConstraint) {
+		/*sortTransformConstraint (constraint: TransformConstraint) {
 			constraint.active = constraint.target.isActive() && (!constraint.data.skinRequired || (this.skin != null && Utils.contains(this.skin.constraints, constraint.data, true)));
 			if (!constraint.active) return;
 
@@ -259,7 +259,7 @@ module spine {
 					}
 				}
 			}
-		}
+		}*/
 
 		sortBone (bone: Bone) {
 			if (bone.sorted) return;
@@ -319,7 +319,7 @@ module spine {
 				constraint.stretch = constraint.data.stretch;
 			}
 
-			let transformConstraints = this.transformConstraints;
+			/*let transformConstraints = this.transformConstraints;
 			for (let i = 0, n = transformConstraints.length; i < n; i++) {
 				let constraint = transformConstraints[i];
 				let data = constraint.data;
@@ -327,9 +327,9 @@ module spine {
 				constraint.translateMix = data.translateMix;
 				constraint.scaleMix = data.scaleMix;
 				constraint.shearMix = data.shearMix;
-			}
+			}*/
 
-			let pathConstraints = this.pathConstraints;
+			/*let pathConstraints = this.pathConstraints;
 			for (let i = 0, n = pathConstraints.length; i < n; i++) {
 				let constraint = pathConstraints[i];
 				let data = constraint.data;
@@ -337,7 +337,7 @@ module spine {
 				constraint.spacing = data.spacing;
 				constraint.rotateMix = data.rotateMix;
 				constraint.translateMix = data.translateMix;
-			}
+			}*/
 		}
 
 		setSlotsToSetupPose () {
@@ -474,7 +474,7 @@ module spine {
 		}
 
 		// @return May be null.
-		findTransformConstraint (constraintName: string) {
+		/*findTransformConstraint (constraintName: string) {
 			if (constraintName == null) throw new Error("constraintName cannot be null.");
 			let transformConstraints = this.transformConstraints;
 			for (let i = 0, n = transformConstraints.length; i < n; i++) {
@@ -482,10 +482,10 @@ module spine {
 				if (constraint.data.name == constraintName) return constraint;
 			}
 			return null;
-		}
+		}*/
 
 		/** @return May be null. */
-		findPathConstraint (constraintName: string) {
+		/*findPathConstraint (constraintName: string) {
 			if (constraintName == null) throw new Error("constraintName cannot be null.");
 			let pathConstraints = this.pathConstraints;
 			for (let i = 0, n = pathConstraints.length; i < n; i++) {
@@ -493,7 +493,7 @@ module spine {
 				if (constraint.data.name == constraintName) return constraint;
 			}
 			return null;
-		}
+		}*/
 
 		/** Returns the axis aligned bounding box (AABB) of the region and mesh attachments for the current pose.
 		 * @param offset The distance from the skeleton origin to the bottom left corner of the AABB.

@@ -31,10 +31,10 @@ module spine {
 	export class SkeletonBinary {
 		static AttachmentTypeValues = [ 0 /*AttachmentType.Region*/, 1/*AttachmentType.BoundingBox*/, 2/*AttachmentType.Mesh*/, 3/*AttachmentType.LinkedMesh*/, 4/*AttachmentType.Path*/, 5/*AttachmentType.Point*/, 6/*AttachmentType.Clipping*/ ];
 		static TransformModeValues = [TransformMode.Normal, TransformMode.OnlyTranslation, TransformMode.NoRotationOrReflection, TransformMode.NoScale, TransformMode.NoScaleOrReflection];
-		static PositionModeValues = [ PositionMode.Fixed, PositionMode.Percent ];
-		static SpacingModeValues = [ SpacingMode.Length, SpacingMode.Fixed, SpacingMode.Percent];
-		static RotateModeValues = [ RotateMode.Tangent, RotateMode.Chain, RotateMode.ChainScale ];
-		static BlendModeValues = [ BlendMode.Normal, BlendMode.Additive, BlendMode.Multiply, BlendMode.Screen];
+		//static PositionModeValues = [ PositionMode.Fixed, PositionMode.Percent ];
+		//static SpacingModeValues = [ SpacingMode.Length, SpacingMode.Fixed, SpacingMode.Percent];
+		//static RotateModeValues = [ RotateMode.Tangent, RotateMode.Chain, RotateMode.ChainScale ];
+		//static BlendModeValues = [ BlendMode.Normal, BlendMode.Additive, BlendMode.Multiply, BlendMode.Screen];
 
 		static BONE_ROTATE = 0;
 		static BONE_TRANSLATE = 1;
@@ -55,13 +55,13 @@ module spine {
 
 		attachmentLoader: AttachmentLoader;
 		scale = 1;
-		private linkedMeshes = new Array<LinkedMesh>();
+		//private linkedMeshes = new Array<LinkedMesh>();
 
 		constructor (attachmentLoader: AttachmentLoader) {
 			this.attachmentLoader = attachmentLoader;
 		}
 
-		readSkeletonData (binary: Uint8Array): SkeletonData {
+		readSkeletonData (binary: Uint8Array, uid: string): SkeletonData {
 			let scale = this.scale;
 
 			let skeletonData = new SkeletonData();
@@ -106,7 +106,7 @@ module spine {
 				data.length = input.readFloat() * scale;
 				data.transformMode = SkeletonBinary.TransformModeValues[input.readInt(true)];
 				data.skinRequired = input.readBoolean();
-				if (nonessential) Color.rgba8888ToColor(data.color, input.readInt32());
+				if (nonessential) Alpha.rgba8888ToColor(data.color, input.readInt32());
 				skeletonData.bones.push(data);
 			}
 
@@ -116,13 +116,13 @@ module spine {
 				let slotName = input.readString();
 				let boneData = skeletonData.bones[input.readInt(true)];
 				let data = new SlotData(i, slotName, boneData);
-				Color.rgba8888ToColor(data.color, input.readInt32());
+				Alpha.rgba8888ToColor(data.color, input.readInt32());
 
 				let darkColor = input.readInt32();
-				if (darkColor != -1) Color.rgb888ToColor(data.darkColor = new Color(), darkColor);
+				if (darkColor != -1) Alpha.rgb888ToColor(data.darkColor = new Alpha(), darkColor);
 
 				data.attachmentName = input.readStringRef();
-				data.blendMode = SkeletonBinary.BlendModeValues[input.readInt(true)];
+				//data.blendMode = SkeletonBinary.BlendModeValues[input.readInt(true)];
 				skeletonData.slots.push(data);
 			}
 
@@ -146,7 +146,7 @@ module spine {
 			}
 
 			// Transform constraints.
-			n = input.readInt(true);
+			/*n = input.readInt(true);
 			for (let i = 0, nn; i < n; i++) {
 				let data = new TransformConstraintData(input.readString());
 				data.order = input.readInt(true);
@@ -168,10 +168,10 @@ module spine {
 				data.scaleMix = input.readFloat();
 				data.shearMix = input.readFloat();
 				skeletonData.transformConstraints.push(data);
-			}
+			}*/
 
 			// Path constraints.
-			n = input.readInt(true);
+			/*n = input.readInt(true);
 			for (let i = 0, nn; i < n; i++) {
 				let data = new PathConstraintData(input.readString());
 				data.order = input.readInt(true);
@@ -191,10 +191,10 @@ module spine {
 				data.rotateMix = input.readFloat();
 				data.translateMix = input.readFloat();
 				skeletonData.pathConstraints.push(data);
-			}
+			}*/
 
 			// Default skin.
-			let defaultSkin = this.readSkin(input, skeletonData, true, nonessential);
+			let defaultSkin = this.readSkin(input, skeletonData, true, nonessential, uid);
 			if (defaultSkin != null) {
 				skeletonData.defaultSkin = defaultSkin;
 				skeletonData.skins.push(defaultSkin);
@@ -205,11 +205,11 @@ module spine {
 				let i = skeletonData.skins.length;
 				Utils.setArraySize(skeletonData.skins, n = i + input.readInt(true));
 				for (; i < n; i++)
-					skeletonData.skins[i] = this.readSkin(input, skeletonData, false, nonessential);
+					skeletonData.skins[i] = this.readSkin(input, skeletonData, false, nonessential, uid);
 			}
 
 			// Linked meshes.
-			n = this.linkedMeshes.length;
+			/*n = this.linkedMeshes.length;
 			for (let i = 0; i < n; i++) {
 				let linkedMesh = this.linkedMeshes[i];
 				let skin = linkedMesh.skin == null ? skeletonData.defaultSkin : skeletonData.findSkin(linkedMesh.skin);
@@ -220,7 +220,7 @@ module spine {
 				linkedMesh.mesh.setParentMesh(parent as MeshAttachment);
 				linkedMesh.mesh.updateUVs();
 			}
-			this.linkedMeshes.length = 0;
+			this.linkedMeshes.length = 0;*/
 
 			// Events.
 			n = input.readInt(true);
@@ -244,7 +244,7 @@ module spine {
 			return skeletonData;
 		}
 
-		private readSkin (input: BinaryInput, skeletonData: SkeletonData, defaultSkin: boolean, nonessential: boolean): Skin {
+		private readSkin (input: BinaryInput, skeletonData: SkeletonData, defaultSkin: boolean, nonessential: boolean, uid: string): Skin {
 			let skin = null;
 			let slotCount = 0;
 
@@ -260,10 +260,10 @@ module spine {
 
 				for (let i = 0, n = input.readInt(true); i < n; i++)
 					skin.constraints.push(skeletonData.ikConstraints[input.readInt(true)]);
-				for (let i = 0, n = input.readInt(true); i < n; i++)
+				/*for (let i = 0, n = input.readInt(true); i < n; i++)
 					skin.constraints.push(skeletonData.transformConstraints[input.readInt(true)]);
 				for (let i = 0, n = input.readInt(true); i < n; i++)
-					skin.constraints.push(skeletonData.pathConstraints[input.readInt(true)]);
+					skin.constraints.push(skeletonData.pathConstraints[input.readInt(true)]);*/
 
 				slotCount = input.readInt(true);
 			}
@@ -272,14 +272,14 @@ module spine {
 				let slotIndex = input.readInt(true);
 				for (let ii = 0, nn = input.readInt(true); ii < nn; ii++) {
 					let name = input.readStringRef();
-					let attachment = this.readAttachment(input, skeletonData, skin, slotIndex, name, nonessential);
+					let attachment = this.readAttachment(input, skeletonData, skin, slotIndex, name, nonessential, uid);
 					if (attachment != null) skin.setAttachment(slotIndex, name, attachment);
 				}
 			}
 			return skin;
 		}
 
-		private readAttachment(input: BinaryInput, skeletonData: SkeletonData, skin: Skin, slotIndex: number, attachmentName: string, nonessential: boolean): Attachment {
+		private readAttachment(input: BinaryInput, skeletonData: SkeletonData, skin: Skin, slotIndex: number, attachmentName: string, nonessential: boolean, uid: string): Attachment {
 			let scale = this.scale;
 
 			let name = input.readStringRef();
@@ -300,7 +300,7 @@ module spine {
 				let color = input.readInt32();
 
 				if (path == null) path = name;
-				let region = this.attachmentLoader.newRegionAttachment(skin, name, path);
+				let region = this.attachmentLoader.newRegionAttachment(skin, name, path, uid);
 				if (region == null) return null;
 				region.path = path;
 				region.x = x * scale;
@@ -310,7 +310,7 @@ module spine {
 				region.rotation = rotation;
 				region.width = width * scale;
 				region.height = height * scale;
-				Color.rgba8888ToColor(region.color, color);
+				Alpha.rgba8888ToColor(region.color, color);
 				region.updateOffset();
 				return region;
 			}
@@ -324,10 +324,10 @@ module spine {
 				box.worldVerticesLength = vertexCount << 1;
 				box.vertices = vertices.vertices;
 				box.bones = vertices.bones;
-				if (nonessential) Color.rgba8888ToColor(box.color, color);
+				if (nonessential) Alpha.rgba8888ToColor(box.color, color);
 				return box;
 			}
-			case AttachmentType.Mesh: {
+			/*case AttachmentType.Mesh: {
 				let path = input.readStringRef();
 				let color = input.readInt32();
 				let vertexCount = input.readInt(true);
@@ -347,7 +347,7 @@ module spine {
 				let mesh = this.attachmentLoader.newMeshAttachment(skin, name, path);
 				if (mesh == null) return null;
 				mesh.path = path;
-				Color.rgba8888ToColor(mesh.color, color);
+				Alpha.rgba8888ToColor(mesh.color, color);
 				mesh.bones = vertices.bones;
 				mesh.vertices = vertices.vertices;
 				mesh.worldVerticesLength = vertexCount << 1;
@@ -385,8 +385,8 @@ module spine {
 				}
 				this.linkedMeshes.push(new LinkedMesh(mesh, skinName, slotIndex, parent, inheritDeform));
 				return mesh;
-			}
-			case AttachmentType.Path: {
+			}*/
+			/*case AttachmentType.Path: {
 				let closed = input.readBoolean();
 				let constantSpeed = input.readBoolean();
 				let vertexCount = input.readInt(true);
@@ -404,9 +404,9 @@ module spine {
 				path.vertices = vertices.vertices;
 				path.bones = vertices.bones;
 				path.lengths = lengths;
-				if (nonessential) Color.rgba8888ToColor(path.color, color);
+				if (nonessential) Alpha.rgba8888ToColor(path.color, color);
 				return path;
-			}
+			}*/
 			case AttachmentType.Point: {
 				let rotation = input.readFloat();
 				let x = input.readFloat();
@@ -418,10 +418,10 @@ module spine {
 				point.x = x * scale;
 				point.y = y * scale;
 				point.rotation = rotation;
-				if (nonessential) Color.rgba8888ToColor(point.color, color);
+				if (nonessential) Alpha.rgba8888ToColor(point.color, color);
 				return point;
 			}
-			case AttachmentType.Clipping: {
+			/*case AttachmentType.Clipping: {
 				let endSlotIndex = input.readInt(true);
 				let vertexCount = input.readInt(true);
 				let vertices = this.readVertices(input, vertexCount);
@@ -433,9 +433,9 @@ module spine {
 				clip.worldVerticesLength = vertexCount << 1;
 				clip.vertices = vertices.vertices;
 				clip.bones = vertices.bones;
-				if (nonessential) Color.rgba8888ToColor(clip.color, color);
+				if (nonessential) Alpha.rgba8888ToColor(clip.color, color);
 				return clip;
-			}
+			}*/
 			}
 			return null;
 		}
@@ -489,8 +489,8 @@ module spine {
 			let timelines = new Array<Timeline>();
 			let scale = this.scale;
 			let duration = 0;
-			let tempColor1 = new Color();
-			let tempColor2 = new Color();
+			let tempColor1 = new Alpha();
+			let tempColor2 = new Alpha();
 
 			// Slot timelines.
 			for (let i = 0, n = input.readInt(true); i < n; i++) {
@@ -513,21 +513,21 @@ module spine {
 						timeline.slotIndex = slotIndex;
 						for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
 							let time = input.readFloat();
-							Color.rgba8888ToColor(tempColor1, input.readInt32());
-							timeline.setFrame(frameIndex, time, tempColor1.r, tempColor1.g, tempColor1.b, tempColor1.a);
+							Alpha.rgba8888ToColor(tempColor1, input.readInt32());
+							timeline.setFrame(frameIndex, time, tempColor1.a);
 							if (frameIndex < frameCount - 1) this.readCurve(input, frameIndex, timeline);
 						}
 						timelines.push(timeline);
 						duration = Math.max(duration, timeline.frames[(frameCount - 1) * ColorTimeline.ENTRIES]);
 						break;
 					}
-					case SkeletonBinary.SLOT_TWO_COLOR: {
+					/*case SkeletonBinary.SLOT_TWO_COLOR: {
 						let timeline = new TwoColorTimeline(frameCount);
 						timeline.slotIndex = slotIndex;
 						for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
 							let time = input.readFloat();
-							Color.rgba8888ToColor(tempColor1, input.readInt32());
-							Color.rgb888ToColor(tempColor2, input.readInt32());
+							Alpha.rgba8888ToColor(tempColor1, input.readInt32());
+							Alpha.rgb888ToColor(tempColor2, input.readInt32());
 							timeline.setFrame(frameIndex, time, tempColor1.r, tempColor1.g, tempColor1.b, tempColor1.a, tempColor2.r,
 								tempColor2.g, tempColor2.b);
 							if (frameIndex < frameCount - 1) this.readCurve(input, frameIndex, timeline);
@@ -535,7 +535,7 @@ module spine {
 						timelines.push(timeline);
 						duration = Math.max(duration, timeline.frames[(frameCount - 1) * TwoColorTimeline.ENTRIES]);
 						break;
-					}
+					}*/
 					}
 				}
 			}
@@ -601,7 +601,7 @@ module spine {
 			}
 
 			// Transform constraint timelines.
-			for (let i = 0, n = input.readInt(true); i < n; i++) {
+			/*for (let i = 0, n = input.readInt(true); i < n; i++) {
 				let index = input.readInt(true);
 				let frameCount = input.readInt(true);
 				let timeline = new TransformConstraintTimeline(frameCount);
@@ -613,10 +613,10 @@ module spine {
 				}
 				timelines.push(timeline);
 				duration = Math.max(duration, timeline.frames[(frameCount - 1) * TransformConstraintTimeline.ENTRIES]);
-			}
+			}*/
 
 			// Path constraint timelines.
-			for (let i = 0, n = input.readInt(true); i < n; i++) {
+			/*for (let i = 0, n = input.readInt(true); i < n; i++) {
 				let index = input.readInt(true);
 				let data = skeletonData.pathConstraints[index];
 				for (let ii = 0, nn = input.readInt(true); ii < nn; ii++) {
@@ -656,10 +656,10 @@ module spine {
 					}
 					}
 				}
-			}
+			}*/
 
 			// Deform timelines.
-			for (let i = 0, n = input.readInt(true); i < n; i++) {
+			/*for (let i = 0, n = input.readInt(true); i < n; i++) {
 				let skin = skeletonData.skins[input.readInt(true)];
 				for (let ii = 0, nn = input.readInt(true); ii < nn; ii++) {
 					let slotIndex = input.readInt(true);
@@ -704,7 +704,7 @@ module spine {
 						duration = Math.max(duration, timeline.frames[frameCount - 1]);
 					}
 				}
-			}
+			}*/
 
 			// Draw order timeline.
 			let drawOrderCount = input.readInt(true);
@@ -869,7 +869,7 @@ module spine {
 		}
 	}
 
-	class LinkedMesh {
+	/*class LinkedMesh {
 		parent: string; skin: string;
 		slotIndex: number;
 		mesh: MeshAttachment;
@@ -882,7 +882,7 @@ module spine {
 			this.parent = parent;
 			this.inheritDeform = inheritDeform;
 		}
-	}
+	}*/
 
 	class Vertices {
 		constructor(public bones: Array<number> = null, public vertices: Array<number> | Float32Array = null) { }

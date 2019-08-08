@@ -230,21 +230,21 @@ module spine {
 						}
 					}
 
-					if (skinMap.transform) {
+					/*if (skinMap.transform) {
 						for (let ii = 0; ii < skinMap.transform.length; ii++) {
 							let constraint = skeletonData.findTransformConstraint(skinMap.transform[ii]);
 							if (constraint == null) throw new Error("Skin transform constraint not found: " + skinMap.transform[i]);
 							skin.constraints.push(constraint);
 						}
-					}
+					}*/
 
-					if (skinMap.path) {
+					/*if (skinMap.path) {
 						for (let ii = 0; ii < skinMap.path.length; ii++) {
 							let constraint = skeletonData.findPathConstraint(skinMap.path[ii]);
 							if (constraint == null) throw new Error("Skin path constraint not found: " + skinMap.path[i]);
 							skin.constraints.push(constraint);
 						}
-					}
+					}*/
 
 					for (let slotName in skinMap.attachments) {
 						let slot = skeletonData.findSlot(slotName);

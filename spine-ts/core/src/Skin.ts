@@ -112,10 +112,10 @@ module spine {
 			for (let i = 0; i < attachments.length; i++) {
 				var attachment = attachments[i];
 				if (attachment.attachment == null) continue;
-				if (attachment.attachment instanceof MeshAttachment) {
+				/*if (attachment.attachment instanceof MeshAttachment) {
 					attachment.attachment = attachment.attachment.newLinkedMesh();
 					this.setAttachment(attachment.slotIndex, attachment.name, attachment.attachment);
-				} else {
+				} else*/ {
 					attachment.attachment = attachment.attachment.copy();
 					this.setAttachment(attachment.slotIndex, attachment.name, attachment.attachment);
 				}

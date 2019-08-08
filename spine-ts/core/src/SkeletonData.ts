@@ -37,8 +37,8 @@ module spine {
 		events = new Array<EventData>();
 		animations = new Array<Animation>();
 		ikConstraints = new Array<IkConstraintData>();
-		transformConstraints = new Array<TransformConstraintData>();
-		pathConstraints = new Array<PathConstraintData>();
+		//transformConstraints = new Array<TransformConstraintData>();
+		//pathConstraints = new Array<PathConstraintData>();
 		x: number; y: number; width: number; height: number;
 		version: string; hash: string;
 
@@ -123,7 +123,7 @@ module spine {
 			return null;
 		}
 
-		findTransformConstraint (constraintName: string) {
+		/*findTransformConstraint (constraintName: string) {
 			if (constraintName == null) throw new Error("constraintName cannot be null.");
 			let transformConstraints = this.transformConstraints;
 			for (let i = 0, n = transformConstraints.length; i < n; i++) {
@@ -149,6 +149,6 @@ module spine {
 			for (let i = 0, n = pathConstraints.length; i < n; i++)
 				if (pathConstraints[i].name == pathConstraintName) return i;
 			return -1;
-		}
+		}*/
 	}
 }

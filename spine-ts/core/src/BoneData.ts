@@ -37,7 +37,7 @@ module spine {
 		transformMode = TransformMode.Normal;
 		skinRequired = false;
 
-		color = new Color();
+		color = new Alpha();
 
 		constructor (index: number, name: string, parent: BoneData) {
 			if (index < 0) throw new Error("index must be >= 0.");

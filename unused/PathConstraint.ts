@@ -1,35 +1,34 @@
 /******************************************************************************
- * Spine Runtimes Software License v2.5
+ * Spine Runtimes License Agreement
+ * Last updated May 1, 2019. Replaces all prior versions.
  *
- * Copyright (c) 2013-2016, Esoteric Software
- * All rights reserved.
+ * Copyright (c) 2013-2019, Esoteric Software LLC
  *
- * You are granted a perpetual, non-exclusive, non-sublicensable, and
- * non-transferable license to use, install, execute, and perform the Spine
- * Runtimes software and derivative works solely for personal or internal
- * use. Without the written permission of Esoteric Software (see Section 2 of
- * the Spine Software License Agreement), you may not (a) modify, translate,
- * adapt, or develop new applications using the Spine Runtimes or otherwise
- * create derivative works or improvements of the Spine Runtimes or (b) remove,
- * delete, alter, or obscure any trademarks or any copyright, trademark, patent,
- * or other intellectual property or proprietary rights notices on or in the
- * Software, including any copy thereof. Redistributions in binary or source
- * form must include this license and terms.
+ * Integration of the Spine Runtimes into software or otherwise creating
+ * derivative works of the Spine Runtimes is permitted under the terms and
+ * conditions of Section 2 of the Spine Editor License Agreement:
+ * http://esotericsoftware.com/spine-editor-license
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS INTERRUPTION, OR LOSS OF
- * USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
+ * "Products"), provided that each user of the Products must obtain their own
+ * Spine Editor license and redistribution of the Products in any form must
+ * include this license and copyright notice.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
+ * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 module spine {
-	export class PathConstraint implements Constraint {
+	export class PathConstraint implements Updatable {
 		static NONE = -1; static BEFORE = -2; static AFTER = -3;
 		static epsilon = 0.00001;
 
@@ -41,6 +40,8 @@ module spine {
 		spaces = new Array<number>(); positions = new Array<number>();
 		world = new Array<number>(); curves = new Array<number>(); lengths = new Array<number>();
 		segments = new Array<number>();
+
+		active = false;
 
 		constructor (data: PathConstraintData, skeleton: Skeleton) {
 			if (data == null) throw new Error("data cannot be null.");
@@ -54,6 +55,10 @@ module spine {
 			this.spacing = data.spacing;
 			this.rotateMix = data.rotateMix;
 			this.translateMix = data.translateMix;
+		}
+
+		isActive () {
+			return this.active;
 		}
 
 		apply () {
@@ -78,7 +83,7 @@ module spine {
 			let spacing = this.spacing;
 			if (scale || !percentSpacing) {
 				if (scale) lengths = Utils.setArraySize(this.lengths, boneCount);
-				var lengthSpacing = data.spacingMode == SpacingMode.Length;
+				let lengthSpacing = data.spacingMode == SpacingMode.Length;
 				for (let i = 0, n = spacesCount - 1; i < n;) {
 					let bone = bones[i];
 					let setupLength = bone.data.length;
@@ -87,8 +92,8 @@ module spine {
 						spaces[++i] = 0;
 					} else if (percentSpacing) {
 						if (scale) {
-							var x = setupLength * bone.a, y = setupLength * bone.c;
-							var length = Math.sqrt(x * x + y * y);
+							let x = setupLength * bone.a, y = setupLength * bone.c;
+							let length = Math.sqrt(x * x + y * y);
 							lengths[i] = length;
 						}
 						spaces[++i] = spacing;
@@ -417,10 +422,6 @@ module spine {
 				else
 					out[o + 2] = Math.atan2(y - (y1 * uu + cy1 * ut * 2 + cy2 * tt), x - (x1 * uu + cx1 * ut * 2 + cx2 * tt));
 			}
-		}
-
-		getOrder () {
-			return this.data.order;
 		}
 	}
 }
