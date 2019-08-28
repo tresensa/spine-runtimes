@@ -2773,6 +2773,32 @@ var spine;
                     skeletonData.slots.push(data);
                 }
             }
+            if (root.ik) {
+                for (var i = 0; i < root.ik.length; i++) {
+                    var constraintMap = root.ik[i];
+                    var data = new spine.IkConstraintData(constraintMap.name);
+                    data.order = this.getValue(constraintMap, "order", 0);
+                    data.skinRequired = this.getValue(constraintMap, "skin", false);
+                    for (var j = 0; j < constraintMap.bones.length; j++) {
+                        var boneName = constraintMap.bones[j];
+                        var bone = skeletonData.findBone(boneName);
+                        if (bone == null)
+                            throw new Error("IK bone not found: " + boneName);
+                        data.bones.push(bone);
+                    }
+                    var targetName = constraintMap.target;
+                    data.target = skeletonData.findBone(targetName);
+                    if (data.target == null)
+                        throw new Error("IK target bone not found: " + targetName);
+                    data.mix = this.getValue(constraintMap, "mix", 1);
+                    data.softness = this.getValue(constraintMap, "softness", 0) * scale;
+                    data.bendDirection = this.getValue(constraintMap, "bendPositive", true) ? 1 : -1;
+                    data.compress = this.getValue(constraintMap, "compress", false);
+                    data.stretch = this.getValue(constraintMap, "stretch", false);
+                    data.uniform = this.getValue(constraintMap, "uniform", false);
+                    skeletonData.ikConstraints.push(data);
+                }
+            }
             if (root.skins) {
                 for (var i = 0; i < root.skins.length; i++) {
                     var skinMap = root.skins[i];

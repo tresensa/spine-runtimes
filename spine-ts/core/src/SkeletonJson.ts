@@ -108,7 +108,7 @@ module spine {
 			}
 
 			// IK constraints
-			/*if (root.ik) {
+			if (root.ik) {
 				for (let i = 0; i < root.ik.length; i++) {
 					let constraintMap = root.ik[i];
 					let data = new IkConstraintData(constraintMap.name);
@@ -135,7 +135,7 @@ module spine {
 
 					skeletonData.ikConstraints.push(data);
 				}
-			}*/
+			}
 
 			// Transform constraints.
 			/*if (root.transform) {
