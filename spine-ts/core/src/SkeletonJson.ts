@@ -562,7 +562,7 @@ module spine {
 			}
 
 			// IK constraint timelines.
-			/*if (map.ik) {
+			if (map.ik) {
 				for (let constraintName in map.ik) {
 					let constraintMap = map.ik[constraintName];
 					let constraint = skeletonData.findIkConstraint(constraintName);
@@ -579,7 +579,7 @@ module spine {
 					timelines.push(timeline);
 					duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * IkConstraintTimeline.ENTRIES]);
 				}
-			}*/
+			}
 
 			// Transform constraint timelines.
 			/*if (map.transform) {

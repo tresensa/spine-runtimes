@@ -3029,6 +3029,23 @@ var spine;
                     }
                 }
             }
+            if (map.ik) {
+                for (var constraintName in map.ik) {
+                    var constraintMap = map.ik[constraintName];
+                    var constraint = skeletonData.findIkConstraint(constraintName);
+                    var timeline = new spine.IkConstraintTimeline(constraintMap.length);
+                    timeline.ikConstraintIndex = skeletonData.ikConstraints.indexOf(constraint);
+                    var frameIndex = 0;
+                    for (var i = 0; i < constraintMap.length; i++) {
+                        var valueMap = constraintMap[i];
+                        timeline.setFrame(frameIndex, this.getValue(valueMap, "time", 0), this.getValue(valueMap, "mix", 1), this.getValue(valueMap, "softness", 0) * scale, this.getValue(valueMap, "bendPositive", true) ? 1 : -1, this.getValue(valueMap, "compress", false), this.getValue(valueMap, "stretch", false));
+                        this.readCurve(valueMap, timeline, frameIndex);
+                        frameIndex++;
+                    }
+                    timelines.push(timeline);
+                    duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * spine.IkConstraintTimeline.ENTRIES]);
+                }
+            }
             var drawOrderNode = map.drawOrder;
             if (drawOrderNode == null)
                 drawOrderNode = map.draworder;
